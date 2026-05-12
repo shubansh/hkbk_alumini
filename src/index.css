@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900 dark:bg-[#020617] dark:text-white transition-colors duration-300 min-h-screen;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* ─── Ken Burns — minimal slow zoom, GPU-only ──────────────────────────── */
+@keyframes kenBurns {
+  0%   { transform: scale(1.00) translateZ(0); }
+  50%  { transform: scale(1.05) translateZ(0); }
+  100% { transform: scale(1.00) translateZ(0); }
+}
+
+.hero-ken-burns {
+  animation: kenBurns 22s ease-in-out infinite;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
