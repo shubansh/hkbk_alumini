@@ -17,7 +17,7 @@ import {
   ExternalLink as LinkedinIcon
 } from 'lucide-react';
 import ProfileAvatar from '../components/ProfileAvatar';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -48,7 +48,7 @@ const NAV_CONFIG = {
     { name: 'Gallery',            path: '/gallery',            icon: Image },
     { name: 'Events',             path: '/events',             icon: Calendar },
     { name: 'Inbound Messages',   path: '/messages',           icon: MessageSquare },
-    { name: 'LinkedIn Feed',      path: '/linkedin-feed',      icon: LinkedinIcon },
+    { name: 'Social Feed',        path: '/social-feed',        icon: LinkedinIcon },
     { name: 'Settings',           path: '/settings',           icon: Settings },
   ],
 };
@@ -62,11 +62,22 @@ const ROLE_LABELS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function DashboardLayout({ role, basePath = '/dashboard' }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { userProfile, handleLogout: authLogout } = useAuth();
   // local avatar state for optimistic upload preview
   const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatar_url ?? null);
   const location = useLocation();
   const navigate = useNavigate();
+  const mainRef = useRef(null);
+
+  const isMessageRoute = location.pathname === '/dashboard/messages';
+
+  useEffect(() => {
+    // Reset scroll position on route change
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [location.pathname]);
 
   // Keep avatar in sync if userProfile changes
   useEffect(() => {
@@ -171,24 +182,41 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
               })}
             </nav>
 
-            {/* Role badge */}
-            <div className="mx-4 mt-6 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20">
-              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 capitalize flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block animate-pulse"></span>
-                {portalLabel}
-              </p>
-            </div>
-          </div>
+            {/* User Dropdown */}
+            <div className="mx-4 mt-6 relative">
+              <button 
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="w-full flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <ProfileAvatar 
+                    userId={userProfile?.id}
+                    url={avatarUrl}
+                    name={userProfile?.full_name}
+                    size="md"
+                    editable={false}
+                  />
+                  <div className="text-left min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{userProfile?.full_name || 'User'}</p>
+                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 capitalize truncate">{role}</p>
+                  </div>
+                </div>
+                <div className={`text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+              </button>
 
-          {/* Logout */}
-          <div className="p-4 border-t border-gray-200/50 dark:border-white/5">
-            <button
-              onClick={handleLogout}
-              className="flex items-center justify-center w-full px-4 py-3 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all duration-300 group"
-            >
-              <LogOut className="mr-3 h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-              Logout
-            </button>
+              {userMenuOpen && (
+                <div className="absolute bottom-full left-0 w-full mb-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
+                  <Link to="/dashboard/settings" className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <Settings className="w-4 h-4" /> Profile Settings
+                  </Link>
+                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
+                    <LogOut className="w-4 h-4" /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -212,7 +240,10 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
           </span>
         </div>
 
-        <main className="flex-1 p-5 md:p-8 lg:p-10 overflow-y-auto relative z-10 custom-scrollbar">
+        <main 
+          ref={mainRef}
+          className={`flex-1 relative z-10 custom-scrollbar ${isMessageRoute ? 'p-0 overflow-hidden' : 'p-5 md:p-8 lg:p-10 overflow-y-auto'}`}
+        >
           <Outlet />
         </main>
       </div>

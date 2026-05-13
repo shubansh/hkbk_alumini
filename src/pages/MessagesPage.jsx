@@ -104,13 +104,45 @@ export default function MessagesPage() {
     }
   };
 
+  const [onlineUsers, setOnlineUsers] = useState({});
+
+  useEffect(() => {
+    if (!session) return;
+
+    // Track online presence
+    const presenceChannel = supabase.channel('online-users', {
+      config: { presence: { key: session.user.id } },
+    });
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        const onlineStatus = {};
+        Object.keys(state).forEach((userId) => {
+          onlineStatus[userId] = true;
+        });
+        setOnlineUsers(onlineStatus);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({ online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [session]);
+
   useEffect(() => {
     if (!selectedUser || !session) return;
     
     fetchMessages(selectedUser.id);
 
+    // Using a dynamic channel name prevents collisions
+    const channelName = `chat_${session.user.id}_${selectedUser.id}_${Date.now()}`;
     const channel = supabase
-      .channel('messages_channel')
+      .channel(channelName)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -126,15 +158,41 @@ export default function MessagesPage() {
         event: 'INSERT', 
         schema: 'public', 
         table: 'messages',
+        filter: `receiver_id=eq.${session.user.id}`
+      }, payload => {
+        if (payload.new.sender_id === selectedUser.id) {
+          setMessages(prev => {
+            if (prev.find(m => m.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
+          scrollToBottom();
+        }
+      })
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
         filter: `sender_id=eq.${session.user.id}`
       }, payload => {
         if (payload.new.receiver_id === selectedUser.id) {
           setMessages(prev => {
-            // Check if message already exists (optimistic UI)
-            if (!prev.find(m => m.id === payload.new.id)) {
-              return [...prev, payload.new];
+            // Check if message already exists by ID
+            if (prev.find(m => m.id === payload.new.id)) return prev;
+            
+            // Check for optimistic message match (same text, temp ID)
+            const tempIndex = prev.findIndex(m => 
+              String(m.id).startsWith('temp-') && 
+              m.message === payload.new.message
+            );
+            
+            if (tempIndex !== -1) {
+              // Replace optimistic message with the real one
+              const newMessages = [...prev];
+              newMessages[tempIndex] = payload.new;
+              return newMessages;
             }
-            return prev;
+            
+            return [...prev, payload.new];
           });
           scrollToBottom();
         }
@@ -142,13 +200,14 @@ export default function MessagesPage() {
       .subscribe();
 
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [selectedUser, session]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, 100);
   };
 
@@ -184,7 +243,7 @@ export default function MessagesPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 overflow-hidden shadow-lg animate-in fade-in duration-500">
+    <div className="flex h-full w-full bg-white dark:bg-slate-900 overflow-hidden animate-in fade-in duration-500">
       
       {/* Users List Sidebar */}
       <div className={`w-full md:w-80 border-r border-gray-200 dark:border-slate-700 flex flex-col ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
@@ -202,7 +261,7 @@ export default function MessagesPage() {
                 selectedUser?.id === user.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
               }`}
             >
-              <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden shrink-0">
+              <div className="relative w-10 h-10 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden shrink-0 shadow-sm border border-gray-100 dark:border-slate-600">
                 {user.avatar_url ? (
                   <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover" />
                 ) : (
@@ -211,6 +270,10 @@ export default function MessagesPage() {
                   </div>
                 )}
               </div>
+              {/* Online Indicator Simulator -> Real Presence */}
+              {onlineUsers[user.id] && (
+                <div className="absolute left-[3.25rem] mt-[1.25rem] w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-800 rounded-full z-10"></div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-0.5">
                   <p className="font-semibold text-gray-900 dark:text-white truncate">{user.full_name}</p>
@@ -266,17 +329,26 @@ export default function MessagesPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50 dark:bg-slate-900/50 custom-scrollbar">
               {messages.map(msg => {
                 const isMe = msg.sender_id === session?.user?.id;
+                const isOptimistic = String(msg.id).startsWith('temp-');
+                
                 return (
-                  <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
+                  <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 fade-in duration-300 ease-out`}>
+                    <div className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm relative group ${
                       isMe 
                         ? 'bg-blue-600 text-white rounded-br-sm' 
                         : 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-bl-sm border border-gray-100 dark:border-slate-600'
                     }`}>
                       <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
-                      <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-blue-200' : 'text-gray-400'}`}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-blue-200' : 'text-gray-400'}`}>
+                        <p className="text-[10px]">
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {isMe && (
+                          <span className="text-[10px]">
+                            {isOptimistic ? '·' : '✓'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -290,7 +362,7 @@ export default function MessagesPage() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+            <div className="mt-auto flex-shrink-0 p-4 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
               <form onSubmit={sendMessage} className="flex gap-2">
                 <input
                   type="text"
@@ -302,7 +374,7 @@ export default function MessagesPage() {
                 <button
                   type="submit"
                   disabled={!newMessage.trim()}
-                  className="w-11 h-11 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md"
+                  className="w-11 h-11 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md shrink-0"
                 >
                   <Send className="w-5 h-5 -ml-0.5 mt-0.5" />
                 </button>
@@ -310,12 +382,14 @@ export default function MessagesPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center">
-            <div className="w-20 h-20 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4">
-              <MessageSquare className="w-10 h-10 text-gray-300 dark:text-gray-500" />
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-full flex items-center justify-center mb-6 shadow-inner">
+              <MessageSquare className="w-12 h-12 text-blue-500 dark:text-blue-400" />
             </div>
-            <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">Your Messages</h3>
-            <p>Select a conversation from the sidebar to start chatting.</p>
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-3">Your Messages</h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+              Select a conversation from the sidebar to start chatting, or connect with a mentor to begin a new thread.
+            </p>
           </div>
         )}
       </div>

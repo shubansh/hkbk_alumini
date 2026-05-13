@@ -95,6 +95,9 @@ const StatCard = ({ icon: Icon, value, label, loading }) => (
   </motion.div>
 );
 
+import SocialFeed from '../components/social/SocialFeed';
+
+// Additional imports here if any, then Home component
 export default function Home() {
   const { alumni = [], loading: alumniLoading } = useFeaturedAlumni(8);
   const { faculty = [], loading: facultyLoading } = useFeaturedFaculty(6);
@@ -171,24 +174,6 @@ export default function Home() {
           <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black/30 to-transparent pointer-events-none" />
         </div>
 
-        {/* Floating badge — top RIGHT */}
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute top-28 right-4 sm:right-8 lg:right-16 z-20"
-        >
-          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full
-            bg-white/10 backdrop-blur-md border border-white/20
-            text-white text-[10px] font-black uppercase tracking-[0.3em]"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400" />
-            </span>
-            Official Alumni Network
-          </div>
-        </motion.div>
 
         {/* Content — RIGHT side floating elegant card */}
         <div className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 flex justify-end">
@@ -198,17 +183,21 @@ export default function Home() {
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-[420px]
-              bg-white/[0.04] backdrop-blur-xl
-              border border-white/[0.08]
-              rounded-3xl p-8
-              shadow-2xl shadow-black/40 mt-16 lg:mt-0"
+            className="w-full max-w-[420px] relative
+              bg-slate-900/40 dark:bg-black/40 
+              backdrop-blur-2xl saturate-150
+              border border-white/10
+              rounded-3xl p-8 mt-16 lg:mt-0
+              shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
           >
+            {/* Subtle premium border glow */}
+            <div className="absolute inset-0 rounded-3xl border border-white/20 mix-blend-overlay pointer-events-none" />
+            
             <motion.div
               initial="hidden"
               animate="visible"
               variants={staggerContainer}
-              className="space-y-5"
+              className="space-y-5 relative z-10"
             >
               {/* Headline */}
               <motion.h1
@@ -300,19 +289,38 @@ export default function Home() {
       {/* ─── Affiliations Section ───────────────────────────────────────────── */}
       <Affiliations />
 
+      {/* ─── Social Media Feed ──────────────────────────────────────────────── */}
+      <SocialFeed />
+
       {/* ─── About HKBK Section (New) ───────────────────────────────────────── */}
       <section className="py-32 relative overflow-hidden bg-white dark:bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <div className="order-2 lg:order-1">
-              <div className="relative rounded-[3rem] overflow-hidden shadow-2xl aspect-video lg:aspect-square">
-                <OptimizedImage
-                  src={ABOUT_IMAGE}
-                  fallbackSrc={FALLBACKS.campus}
-                  alt="College Excellence"
-                  wrapperClassName="w-full h-full"
-                />
-                <div className="absolute inset-0 bg-blue-600/10 mix-blend-multiply" />
+              <div className="relative group w-full max-w-[640px] mx-auto lg:mx-0">
+                {/* Dynamic Image Color Glow */}
+                <div className="absolute -inset-4 z-0 blur-3xl opacity-40 dark:opacity-30 group-hover:opacity-70 transition-opacity duration-1000 saturate-200 pointer-events-none translate-y-4">
+                  <img 
+                    src={ABOUT_IMAGE || FALLBACKS.campus} 
+                    alt="" 
+                    aria-hidden="true" 
+                    className="w-full h-full object-cover rounded-[3rem] mix-blend-normal dark:mix-blend-lighten" 
+                  />
+                </div>
+
+                {/* Main Adaptive Image Card */}
+                <div className="relative z-10 w-full rounded-[2rem] lg:rounded-[3rem] overflow-hidden bg-white/5 backdrop-blur-sm border border-black/5 dark:border-white/10 shadow-2xl transition-all duration-700 ease-out group-hover:scale-[1.02] group-hover:-translate-y-2">
+                  <OptimizedImage
+                    src={ABOUT_IMAGE}
+                    fallbackSrc={FALLBACKS.campus}
+                    alt="College Excellence"
+                    wrapperClassName="w-full flex justify-center items-center"
+                    className="w-full h-auto max-h-[720px] object-contain"
+                  />
+                  
+                  {/* Subtle inner premium frame */}
+                  <div className="absolute inset-0 rounded-[2rem] lg:rounded-[3rem] border border-white/60 dark:border-white/20 mix-blend-overlay pointer-events-none" />
+                </div>
               </div>
             </div>
 

@@ -4,7 +4,34 @@
 
 @layer base {
   body {
-    @apply bg-white text-gray-900 dark:bg-[#020617] dark:text-white transition-colors duration-300 min-h-screen;
+    @apply bg-slate-50 text-gray-900 transition-colors duration-500 min-h-screen;
+  }
+  
+  .dark body {
+    @apply bg-[#020617] text-white;
+  }
+
+  [data-theme="midnight"] body {
+    @apply bg-[#060913] text-blue-50;
+    /* Deep midnight overrides */
+    --tw-bg-opacity: 1;
+    background-image: radial-gradient(circle at top right, rgba(30, 58, 138, 0.15), transparent 40%),
+                      radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.05), transparent 40%);
+  }
+
+  [data-theme="glassmorphism"] body {
+    @apply bg-slate-900 text-white;
+    background-image: linear-gradient(to bottom right, rgba(15,23,42,0.9), rgba(15,23,42,0.8)), url('/images/hero/main.jpg');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+  }
+  
+  /* Glassmorphism utility classes */
+  [data-theme="glassmorphism"] .bg-white\/80,
+  [data-theme="glassmorphism"] .bg-slate-900\/60,
+  [data-theme="glassmorphism"] .dark\:bg-slate-900\/60 {
+    @apply bg-white/5 backdrop-blur-2xl border-white/10 shadow-2xl;
   }
 }
 
@@ -29,6 +56,20 @@
   animation: kenBurns 22s ease-in-out infinite;
   will-change: transform;
   transform-origin: center center;
+}
+
+/* ─── Infinite Marquee ─────────────────────────────────────────────────── */
+@keyframes infinite-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-infinite-scroll {
+  animation: infinite-scroll 40s linear infinite;
+  width: max-content;
+}
+.animate-infinite-scroll:hover {
+  animation-play-state: paused;
 }
 
 @layer utilities {

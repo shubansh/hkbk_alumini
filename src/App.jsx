@@ -20,6 +20,7 @@ import StudentDashboard from './pages/student/StudentDashboard';
 import AlumniDashboard  from './pages/alumni/AlumniDashboard';
 import MentorshipPage   from './pages/MentorshipPage';
 import MessagesPage     from './pages/MessagesPage';
+import ProfileSettings  from './pages/ProfileSettings';
 
 // Admin pages
 import AdminDashboard     from './pages/admin/AdminDashboard';
@@ -32,7 +33,7 @@ import AdminPosts         from './pages/admin/AdminPosts';
 import AdminPeople        from './pages/admin/AdminPeople';
 import AdminFaculty       from './pages/admin/AdminFaculty';
 import AdminMessages      from './pages/admin/AdminMessages';
-import AdminLinkedInFeed  from './pages/admin/AdminLinkedInFeed';
+import AdminSocialFeed  from './pages/admin/AdminSocialFeed';
 
 // ─── Shared UI Pieces ──────────────────────────────────────────────────────
 
@@ -187,7 +188,7 @@ export default function App() {
             <Route path="posts"           element={<AdminPosts />} />
             <Route path="mentorship"      element={<MentorshipPage />} />
             <Route path="messages"        element={<AdminMessages />} />
-            <Route path="linkedin-feed"   element={<AdminLinkedInFeed />} />
+            <Route path="social-feed"     element={<AdminSocialFeed />} />
           </Route>
 
           {/* ── User Dashboard routes ─────────────────────────────── */}
@@ -201,6 +202,7 @@ export default function App() {
             <Route path="alumni"   element={<AlumniDashboard />} />
             <Route path="mentorship" element={<MentorshipPage />} />
             <Route path="messages"   element={<MessagesPage />} />
+            <Route path="settings"   element={<ProfileSettings />} />
           </Route>
 
         </Routes>

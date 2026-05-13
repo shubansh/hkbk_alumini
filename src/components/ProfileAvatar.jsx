@@ -86,7 +86,7 @@ export default function ProfileAvatar({
       )}
       <div className="w-full h-full">
         <ImageUpload
-          bucket="avatars"
+          bucket="profile-images"
           folder={userId ?? 'public'}
           currentUrl={avatarUrl}
           onUpload={handleUploadDone}

@@ -59,6 +59,24 @@ export default function Signup() {
     company: '',
     jobRole: ''
   });
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        toast.error('Only JPG, PNG, and WebP are supported.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be less than 5MB.');
+        return;
+      }
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -133,6 +151,26 @@ export default function Signup() {
     // The DB trigger should have created the profile already; this is a fallback.
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    let uploadedAvatarUrl = null;
+    if (avatarFile) {
+      try {
+        const ext = avatarFile.name.split('.').pop();
+        const fileName = `${data.user.id}/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('profile-images')
+          .upload(fileName, avatarFile, { cacheControl: '3600', upsert: false });
+          
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('profile-images')
+            .getPublicUrl(fileName);
+          uploadedAvatarUrl = publicUrl;
+        }
+      } catch (err) {
+        console.error('Avatar upload failed', err);
+      }
+    }
+
     const profilePayload = {
       id: data.user.id,
       email: formData.email,
@@ -146,6 +184,7 @@ export default function Signup() {
       passout_year: role === 'alumni' ? parseInt(formData.passoutYear) : null,
       company: role === 'alumni' ? formData.company || null : null,
       job_title: role === 'alumni' ? formData.jobRole || null : null,
+      ...(uploadedAvatarUrl && { avatar_url: uploadedAvatarUrl })
     };
 
     console.log('[Signup] Upserting profile payload:', profilePayload);
@@ -246,6 +285,28 @@ export default function Signup() {
             </div>
 
             <form className="space-y-5 animate-in fade-in duration-500" onSubmit={handleSignup}>
+              
+              {/* Optional Profile Image */}
+              <div className="flex flex-col items-center justify-center mb-6">
+                <div className="relative w-24 h-24 rounded-full border-2 border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors flex items-center justify-center overflow-hidden group">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/jpeg, image/png, image/webp" 
+                    onChange={handleAvatarChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center transition-opacity pointer-events-none">
+                    <span className="text-[10px] font-bold text-white uppercase tracking-wider">Upload</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Profile Photo (Optional)</p>
+              </div>
+
               {/* Common Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <InputWrapper icon={User}>

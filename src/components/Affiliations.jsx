@@ -1,68 +1,65 @@
-import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { affiliations } from '../data/affiliations';
 
-const AFFILIATIONS = [
-  {
-    name: 'AICTE',
-    fullName: 'All India Council for Technical Education',
-    logo: 'https://upload.wikimedia.org/wikipedia/en/e/eb/All_India_Council_for_Technical_Education_logo.png',
-  },
-  {
-    name: 'VTU',
-    fullName: 'Visvesvaraya Technological University',
-    logo: 'https://vtu.ac.in/wp-content/themes/vtu/images/logo.png',
-  },
-  {
-    name: 'NAAC',
-    fullName: 'National Assessment and Accreditation Council',
-    logo: 'https://upload.wikimedia.org/wikipedia/en/1/11/NAAC_logo.png',
-  }
-];
+// Duplicate the array so the marquee seamlessly loops even on ultra-wide screens
+const MARQUEE_ITEMS = [...affiliations, ...affiliations, ...affiliations, ...affiliations, ...affiliations];
 
-function AffiliationItem({ item, idx }) {
+function AffiliationItem({ item }) {
   const [error, setError] = useState(false);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ delay: idx * 0.1 }}
-      viewport={{ once: true }}
-      whileHover={{ y: -5, scale: 1.05 }}
-      className="flex flex-col items-center gap-3 group grayscale hover:grayscale-0 transition-all duration-500"
+    <div
+      title={item.fullName}
+      className="flex flex-col items-center justify-start gap-4 group grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-500 hover:-translate-y-2 w-36 md:w-48 shrink-0 cursor-pointer px-4 relative z-20 py-2"
     >
-      <div className="h-16 w-auto flex items-center justify-center">
+      <div className="h-14 md:h-20 w-full flex items-center justify-center relative">
+        {/* Soft premium glow on hover */}
+        <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
+        
         {!error ? (
           <img 
             src={item.logo} 
-            alt={item.name} 
-            className="max-h-full object-contain drop-shadow-sm"
+            alt={item.fullName || item.name} 
+            className="max-h-full max-w-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-500"
             onError={() => setError(true)}
           />
         ) : (
-          <span className="font-black text-2xl text-gray-300 dark:text-slate-700">{item.name}</span>
+          <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-slate-800 flex items-center justify-center">
+             <span className="font-bold text-xs text-gray-400">IMG</span>
+          </div>
         )}
       </div>
-      <div className="text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{item.name}</p>
+      
+      {/* Name below logo */}
+      <div className="text-center w-full">
+        <p className="text-[11px] md:text-xs font-bold text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
+          {item.name}
+        </p>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 export default function Affiliations() {
+  console.log("Dynamically loaded affiliations:", affiliations);
+
   return (
-    <div className="py-12 border-y border-gray-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row items-center justify-center gap-12 md:gap-24">
-          <p className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4 md:mb-0">
-            Recognized & Affiliated by
-          </p>
-          <div className="flex flex-wrap justify-center items-center gap-10 md:gap-20">
-            {AFFILIATIONS.map((item, idx) => (
-              <AffiliationItem key={item.name} item={item} idx={idx} />
-            ))}
-          </div>
+    <div className="py-12 border-y border-gray-100 dark:border-slate-800/60 bg-white/50 dark:bg-[#020617]/50 backdrop-blur-sm overflow-hidden flex flex-col items-center">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 text-center">
+        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em]">
+          Recognized & Affiliated by
+        </p>
+      </div>
+
+      <div className="relative w-full overflow-hidden max-w-[100vw]">
+        {/* Gradient edge masks to fade the scrolling items smoothly */}
+        <div className="absolute left-0 top-0 bottom-0 w-16 md:w-40 bg-gradient-to-r from-white dark:from-[#020617] to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-16 md:w-40 bg-gradient-to-l from-white dark:from-[#020617] to-transparent z-10 pointer-events-none" />
+
+        <div className="flex animate-infinite-scroll py-2">
+          {MARQUEE_ITEMS.map((item, idx) => (
+            <AffiliationItem key={`${item.name}-${idx}`} item={item} />
+          ))}
         </div>
       </div>
     </div>

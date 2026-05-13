@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Briefcase, Calendar, MessageSquare, ChevronRight, Sparkles, HeartHandshake } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useJobs } from '../../hooks/useJobs';
 
 export default function AlumniDashboard() {
   const [profile, setProfile] = useState(null);
@@ -9,8 +10,10 @@ export default function AlumniDashboard() {
   const [error, setError] = useState(null);
 
   const [stats, setStats] = useState({ jobsPosted: 0, messages: 0, connections: 0 });
-  const [recentJobs, setRecentJobs] = useState([]);
   const [recentRequests, setRecentRequests] = useState([]);
+  
+  // Use the realtime jobs hook scoped to this alumni
+  const { jobs: recentJobs } = useJobs({ postedBy: profile?.id, limit: 3 });
 
   useEffect(() => {
     async function fetchProfileAndStats() {
@@ -57,17 +60,6 @@ export default function AlumniDashboard() {
             messages: msgCount,
             connections: mentorshipsCount,
           });
-
-          // Fetch recent jobs safely
-          const { data: jobsData, error: jobsError } = await supabase
-            .from('jobs')
-            .select('*')
-            .eq('posted_by', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(3);
-          
-          if (jobsError) console.error("Jobs fetch error:", jobsError);
-          if (jobsData) setRecentJobs(jobsData);
 
           // Fetch mentorship requests safely
           const { data: requestData, error: requestsError } = await supabase
@@ -141,37 +133,38 @@ export default function AlumniDashboard() {
       )}
 
       {/* Welcome Hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-8 sm:p-10 shadow-2xl shadow-blue-900/20 flex flex-col md:flex-row items-center gap-8">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-blue-500 opacity-20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-20 -mb-10 w-40 h-40 bg-indigo-400 opacity-20 rounded-full blur-3xl"></div>
-        
-        <div className="relative z-10 flex-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-blue-100 text-xs font-semibold uppercase tracking-wider mb-4">
-            <Sparkles className="w-3 h-3 text-blue-300" /> Alumni Dashboard
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">
-            Welcome back, {profile?.full_name?.split(' ')?.[0] || 'User'}!
-          </h1>
-          {profile?.course_name && (
-            <p className="text-blue-200 font-medium text-lg mb-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" /> {profile.course_name} Alumni {profile.passout_year ? `— Batch ${profile.passout_year}` : ''}
-            </p>
-          )}
-          <p className="text-blue-100 max-w-xl text-lg opacity-90">
-            Thank you for being part of our legacy. Share your journey, mentor the next generation, and stay connected with your peers.
-          </p>
-        </div>
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-8 sm:p-12 shadow-2xl shadow-blue-900/20 flex flex-col md:flex-row items-center gap-10">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-blue-500 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-20 -mb-10 w-40 h-40 bg-indigo-400 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
         
         <div className="relative z-10 flex-shrink-0">
-          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white/20 overflow-hidden shadow-xl">
+          <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-[6px] border-white/20 overflow-hidden shadow-2xl bg-white/5 backdrop-blur-sm relative group">
             {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
             ) : (
-              <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                <Briefcase className="w-12 h-12 text-white/50" />
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/10 to-transparent">
+                <span className="text-4xl font-bold text-white shadow-sm">
+                  {profile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                </span>
               </div>
             )}
+            <Link to="/dashboard/settings" className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-xs font-bold text-white bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">Edit</span>
+            </Link>
           </div>
+        </div>
+
+        <div className="relative z-10 flex-1 text-center md:text-left">
+          <h1 className="text-4xl sm:text-5xl font-black text-white mb-3 tracking-tight">
+            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {profile?.full_name?.split(' ')?.[0] || 'Alumni'} 👋
+          </h1>
+          <p className="text-blue-200 font-semibold text-lg sm:text-xl mb-4 flex items-center justify-center md:justify-start gap-2">
+            <Sparkles className="w-5 h-5 text-amber-300" /> 
+            {profile?.course_name ? `${profile.course_name} Alumni ${profile.passout_year ? `• Batch ${profile.passout_year}` : ''}` : 'Verified Alumni'}
+          </p>
+          <p className="text-blue-50/80 max-w-2xl text-base sm:text-lg leading-relaxed">
+            Thank you for being part of our legacy. Share your journey, mentor the next generation, and stay connected with your peers.
+          </p>
         </div>
       </div>
 

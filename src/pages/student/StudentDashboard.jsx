@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Briefcase, Users, Search, Calendar, ChevronRight, Sparkles, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useJobs } from '../../hooks/useJobs';
 
 export default function StudentDashboard() {
   const [profile, setProfile] = useState(null);
+  const [stats, setStats] = useState({ jobs: 0, events: 0, connections: 0 });
+  const [recentEvents, setRecentEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ jobs: 0, messages: 0, connections: 0 });
-  
-  const [recentJobs, setRecentJobs] = useState([]);
-  const [recentEvents, setRecentEvents] = useState([]);
+
+  // Reusable realtime jobs hook replacing local fetch
+  const { jobs: recentJobs } = useJobs({ status: 'approved', limit: 3 });
 
   useEffect(() => {
     async function fetchProfileAndStats() {
@@ -39,8 +41,8 @@ export default function StudentDashboard() {
           }
 
           // Fetch stats safely
-          const { count: msgCount, error: msgError } = await supabase.from('messages').select('*', { count: 'exact', head: true }).or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`);
-          if (msgError) console.error("Messages stats error:", msgError);
+          const { count: eventsCount, error: eventsError } = await supabase.from('events').select('*', { count: 'exact', head: true }).gte('date', new Date().toISOString());
+          if (eventsError) console.error("Events stats error:", eventsError);
           
           const { count: jobsCount, error: jobsError } = await supabase.from('jobs').select('*', { count: 'exact', head: true });
           if (jobsError) console.error("Jobs stats error:", jobsError);
@@ -49,29 +51,19 @@ export default function StudentDashboard() {
           
           setStats({
             jobs: jobsCount || 0,
-            messages: msgCount || 0,
+            events: eventsCount || 0,
             connections: mentorCount || 0,
           });
 
 
-          // Fetch recent jobs safely
-          const { data: jobsData, error: recentJobsError } = await supabase
-            .from('jobs')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(3);
-          
-          if (recentJobsError) console.error("Recent jobs error:", recentJobsError);
-          if (jobsData) setRecentJobs(jobsData);
-
           // Fetch recent events safely
-          const { data: eventsData, error: eventsError } = await supabase
+          const { data: eventsData, error: recentEventsError } = await supabase
             .from('events')
             .select('*')
             .order('date', { ascending: true })
             .limit(3);
 
-          if (eventsError) console.error("Events error:", eventsError);
+          if (recentEventsError) console.error("Events error:", recentEventsError);
           if (eventsData) setRecentEvents(eventsData);
         }
       } catch (err) {
@@ -107,37 +99,38 @@ export default function StudentDashboard() {
       )}
 
       {/* Welcome Hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 sm:p-10 shadow-2xl shadow-indigo-500/20 flex flex-col md:flex-row items-center gap-8">
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-        <div className="absolute bottom-0 left-10 -mb-8 w-40 h-40 bg-purple-400 opacity-20 rounded-full blur-3xl"></div>
-        
-        <div className="relative z-10 flex-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-semibold uppercase tracking-wider mb-4">
-            <Sparkles className="w-3 h-3" /> Student Dashboard
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">
-            Welcome back, {profile?.full_name?.split(' ')?.[0] || 'User'}!
-          </h1>
-          {profile?.course_name && (
-            <p className="text-blue-200 font-medium text-lg mb-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" /> {profile.course_name} {profile.year_of_study ? `— ${profile.year_of_study}` : ''}
-            </p>
-          )}
-          <p className="text-blue-100 max-w-xl text-lg opacity-90">
-            Ready to take the next step in your career? Connect with mentors, discover jobs, and explore upcoming events.
-          </p>
-        </div>
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-8 sm:p-12 shadow-2xl shadow-indigo-500/20 flex flex-col md:flex-row items-center gap-10">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-10 -mb-10 w-64 h-64 bg-purple-400 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
         
         <div className="relative z-10 flex-shrink-0">
-          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white/20 overflow-hidden shadow-xl">
+          <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-[6px] border-white/20 overflow-hidden shadow-2xl bg-white/5 backdrop-blur-sm relative group">
             {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
             ) : (
-              <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                <Users className="w-12 h-12 text-white/50" />
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/10 to-transparent">
+                <span className="text-4xl font-bold text-white shadow-sm">
+                  {profile?.full_name?.charAt(0)?.toUpperCase() || 'S'}
+                </span>
               </div>
             )}
+            <Link to="/dashboard/settings" className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-xs font-bold text-white bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">Edit</span>
+            </Link>
           </div>
+        </div>
+
+        <div className="relative z-10 flex-1 text-center md:text-left">
+          <h1 className="text-4xl sm:text-5xl font-black text-white mb-3 tracking-tight">
+            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {profile?.full_name?.split(' ')?.[0] || 'Student'} 👋
+          </h1>
+          <p className="text-blue-100 font-semibold text-lg sm:text-xl mb-4 flex items-center justify-center md:justify-start gap-2">
+            <Sparkles className="w-5 h-5 text-amber-300" /> 
+            {profile?.course_name ? `${profile.course_name} ${profile.year_of_study ? `• ${profile.year_of_study}` : ''}` : 'HKBK Connect Student'}
+          </p>
+          <p className="text-blue-50/80 max-w-2xl text-base sm:text-lg leading-relaxed">
+            Your hub for career growth. Connect with alumni mentors, discover exclusive job postings, and join upcoming university events.
+          </p>
         </div>
       </div>
 
@@ -153,12 +146,12 @@ export default function StudentDashboard() {
           </div>
         </div>
         <div className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-gray-200/50 dark:border-white/10 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
-            <MessageSquare className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center text-rose-600 dark:text-rose-400">
+            <Calendar className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Messages</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.messages}</p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Upcoming Events</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.events}</p>
           </div>
         </div>
         <div className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-gray-200/50 dark:border-white/10 shadow-sm flex items-center gap-4">

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
 import { Users, GraduationCap, Calendar, Image as ImageIcon, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function AdminDashboard() {
+  const { userProfile } = useAuth();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalAlumni: 0,
@@ -57,42 +59,55 @@ export default function AdminDashboard() {
   );
 
   const statCards = [
-    { name: 'Total Users', value: stats.totalUsers, icon: Users, color: 'from-blue-500 to-indigo-600', to: '/admin/users' },
-    { name: 'Verified Alumni', value: stats.totalAlumni, icon: GraduationCap, color: 'from-emerald-500 to-teal-600', to: '/admin/users' },
-    { name: 'Total Events', value: stats.totalEvents, icon: Calendar, color: 'from-purple-500 to-fuchsia-600', to: '/admin/events' },
-    { name: 'Gallery Images', value: stats.totalImages, icon: ImageIcon, color: 'from-orange-500 to-rose-600', to: '/admin/gallery' },
+    { name: 'Total Users', value: stats.totalUsers, icon: Users, color: 'from-blue-500 to-indigo-600', to: '/dashboard/users' },
+    { name: 'Verified Alumni', value: stats.totalAlumni, icon: GraduationCap, color: 'from-emerald-500 to-teal-600', to: '/dashboard/users' },
+    { name: 'Total Events', value: stats.totalEvents, icon: Calendar, color: 'from-purple-500 to-fuchsia-600', to: '/dashboard/events' },
+    { name: 'Gallery Images', value: stats.totalImages, icon: ImageIcon, color: 'from-orange-500 to-rose-600', to: '/dashboard/gallery' },
   ];
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       {/* Welcome Hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 sm:p-10 shadow-2xl shadow-indigo-500/20">
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-        <div className="absolute bottom-0 left-10 -mb-8 w-40 h-40 bg-purple-400 opacity-20 rounded-full blur-3xl"></div>
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-8 sm:p-12 shadow-2xl shadow-indigo-900/20 flex flex-col md:flex-row items-center gap-10">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-purple-500 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-20 -mb-10 w-40 h-40 bg-blue-400 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
         
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-semibold uppercase tracking-wider mb-4">
-              <Sparkles className="w-3 h-3 text-white" /> Admin Command Center
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">
-              System Overview
-            </h1>
-            <p className="text-blue-100 max-w-xl text-lg">
-              Manage users, approve alumni requests, and orchestrate platform content.
-            </p>
+        <div className="relative z-10 flex-shrink-0">
+          <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-[6px] border-white/20 overflow-hidden shadow-2xl bg-white/5 backdrop-blur-sm relative group">
+            {userProfile?.avatar_url ? (
+              <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/10 to-transparent">
+                <span className="text-4xl font-bold text-white shadow-sm">
+                  {userProfile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                </span>
+              </div>
+            )}
+            <Link to="/dashboard/settings" className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-xs font-bold text-white bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">Edit</span>
+            </Link>
           </div>
-          <div className="flex items-center gap-4 bg-white/10 border border-white/20 p-4 rounded-2xl backdrop-blur-md">
-            <div className="p-3 bg-white/20 rounded-xl">
-              <TrendingUp className="w-6 h-6 text-white" />
+        </div>
+
+        <div className="relative z-10 flex-1 text-center md:text-left">
+          <h1 className="text-4xl sm:text-5xl font-black text-white mb-3 tracking-tight">
+            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {userProfile?.full_name?.split(' ')?.[0] || 'Administrator'} 👋
+          </h1>
+          <p className="text-purple-200 font-semibold text-lg sm:text-xl mb-4 flex items-center justify-center md:justify-start gap-2">
+            <Sparkles className="w-5 h-5 text-amber-300" /> System Command Center
+          </p>
+          <p className="text-blue-50/80 max-w-2xl text-base sm:text-lg leading-relaxed mb-6">
+            Manage users, approve alumni requests, and orchestrate platform content across the university network.
+          </p>
+          
+          <div className="inline-flex items-center gap-3 bg-white/10 border border-white/20 px-4 py-2 rounded-2xl backdrop-blur-md w-fit mx-auto md:mx-0">
+            <div className="p-1.5 bg-white/20 rounded-lg">
+              <TrendingUp className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <p className="text-xs text-blue-100 font-semibold uppercase tracking-wider mb-1">Live Status</p>
-              <p className="text-sm font-bold text-white flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> All Systems Operational
-              </p>
-            </div>
+            <p className="text-sm font-bold text-white flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> All Systems Operational
+            </p>
           </div>
         </div>
       </div>
