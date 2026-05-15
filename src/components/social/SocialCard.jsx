@@ -34,7 +34,7 @@ export default function SocialCard({ post }) {
             {isInsta ? <Instagram className="w-5 h-5" /> : <Linkedin className="w-5 h-5" />}
           </div>
           <div>
-            <p className="font-bold text-sm text-gray-900 dark:text-white leading-none">HKBK Connect</p>
+            <p className="font-bold text-sm text-gray-900 dark:text-white leading-none">HKBK CE Connect</p>
             <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wider">{isInsta ? 'Instagram' : 'LinkedIn'}</p>
           </div>
         </div>

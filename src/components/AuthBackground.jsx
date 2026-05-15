@@ -49,7 +49,7 @@ export default function AuthBackground({ title, subtitle }) {
             <GraduationCap className="w-6 h-6 text-blue-300" />
           </div>
           <div>
-            <p className="font-black text-white text-lg leading-none">HKBK</p>
+            <p className="font-black text-white text-lg leading-none">HKBK CE</p>
             <p className="text-blue-300 text-xs font-medium">Connect</p>
           </div>
         </div>

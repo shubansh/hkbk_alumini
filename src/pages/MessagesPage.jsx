@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Send, User, MessageSquare, Loader2 } from 'lucide-react';
+import { Send, User, MessageSquare, Loader2, Trash2, Paperclip, FileText, Download } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 export default function MessagesPage() {
@@ -10,7 +10,9 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -101,6 +103,14 @@ export default function MessagesPage() {
     if (data) {
       setMessages(data);
       scrollToBottom();
+
+      // Mark messages as read
+      await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('sender_id', receiverId)
+        .eq('receiver_id', session.user.id)
+        .eq('is_read', false);
     }
   };
 
@@ -197,6 +207,22 @@ export default function MessagesPage() {
           scrollToBottom();
         }
       })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `receiver_id=eq.${session.user.id}`
+      }, payload => {
+        setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `sender_id=eq.${session.user.id}`
+      }, payload => {
+        setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+      })
       .subscribe();
 
     return () => {
@@ -234,6 +260,59 @@ export default function MessagesPage() {
       receiver_id: selectedUser.id,
       message: msgText
     }]);
+  };
+
+  const handleDeleteMessage = async (msgId) => {
+    if (!confirm('Are you sure you want to delete this message for everyone?')) return;
+    const { error } = await supabase
+      .from('messages')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', msgId);
+      
+    if (error) console.error('Error deleting message:', error);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedUser || !session) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be under 5MB');
+      return;
+    }
+    
+    setUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${session.user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    
+    const { data, error } = await supabase.storage
+      .from('chat_attachments')
+      .upload(fileName, file);
+      
+    if (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload file. ' + error.message);
+      setUploading(false);
+      return;
+    }
+    
+    const { data: urlData } = supabase.storage
+      .from('chat_attachments')
+      .getPublicUrl(fileName);
+      
+    await supabase.from('messages').insert([{
+      sender_id: session.user.id,
+      receiver_id: selectedUser.id,
+      message: `Sent an attachment: ${file.name}`,
+      file_url: urlData.publicUrl,
+      file_name: file.name,
+      file_size: file.size,
+      file_type: file.type
+    }]);
+    
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    scrollToBottom();
   };
 
   if (loading) return (
@@ -338,7 +417,33 @@ export default function MessagesPage() {
                         ? 'bg-blue-600 text-white rounded-br-sm' 
                         : 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-bl-sm border border-gray-100 dark:border-slate-600'
                     }`}>
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                      {msg.deleted_at ? (
+                        <p className="text-sm italic opacity-70 flex items-center gap-2">
+                          🚫 This message was deleted
+                        </p>
+                      ) : (
+                        <>
+                          {msg.file_url ? (
+                            <div className="mb-2 mt-1">
+                              <div className={`flex items-center gap-3 p-3 rounded-xl border ${isMe ? 'bg-blue-700/50 border-blue-500' : 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-600'}`}>
+                                <div className={`p-2 rounded-lg ${isMe ? 'bg-blue-500' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'}`}>
+                                  {msg.file_type?.includes('image') ? <img src={msg.file_url} className="w-6 h-6 object-cover rounded" /> : <FileText className="w-6 h-6" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold truncate">{msg.file_name}</p>
+                                  <p className={`text-[10px] ${isMe ? 'text-blue-200' : 'text-gray-500'}`}>{Math.round(msg.file_size / 1024)} KB</p>
+                                </div>
+                                <a href={msg.file_url} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-full hover:bg-black/10 transition-colors ${isMe ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                          )}
+                        </>
+                      )}
+                      
                       <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-blue-200' : 'text-gray-400'}`}>
                         <p className="text-[10px]">
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -349,6 +454,17 @@ export default function MessagesPage() {
                           </span>
                         )}
                       </div>
+
+                      {/* Delete Menu */}
+                      {isMe && !msg.deleted_at && !isOptimistic && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="absolute top-1/2 -translate-y-1/2 -left-10 p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-full shadow-md border border-gray-100 dark:border-slate-700"
+                          title="Delete message"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -364,6 +480,24 @@ export default function MessagesPage() {
             {/* Input Area */}
             <div className="mt-auto flex-shrink-0 p-4 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
               <form onSubmit={sendMessage} className="flex gap-2">
+                <div className="flex items-center">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="p-2.5 text-gray-400 hover:text-blue-500 transition-colors focus:outline-none"
+                    title="Attach file"
+                  >
+                    {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={newMessage}

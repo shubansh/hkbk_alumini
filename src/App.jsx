@@ -33,6 +33,7 @@ import AdminPosts         from './pages/admin/AdminPosts';
 import AdminPeople        from './pages/admin/AdminPeople';
 import AdminFaculty       from './pages/admin/AdminFaculty';
 import AdminMessages      from './pages/admin/AdminMessages';
+import AdminContactMessages from './pages/admin/AdminContactMessages';
 import AdminSocialFeed  from './pages/admin/AdminSocialFeed';
 
 // ─── Shared UI Pieces ──────────────────────────────────────────────────────
@@ -188,6 +189,7 @@ export default function App() {
             <Route path="posts"           element={<AdminPosts />} />
             <Route path="mentorship"      element={<MentorshipPage />} />
             <Route path="messages"        element={<AdminMessages />} />
+            <Route path="contact-messages" element={<AdminContactMessages />} />
             <Route path="social-feed"     element={<AdminSocialFeed />} />
           </Route>
 

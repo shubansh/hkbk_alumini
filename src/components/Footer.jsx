@@ -25,15 +25,15 @@ export default function Footer() {
               />
               <div className="flex flex-col">
                 <span className="text-xl font-black tracking-tighter text-gray-900 dark:text-white leading-none">
-                  HKBK <span className="text-blue-600 dark:text-blue-500">Connect</span>
+                  HKBK CE <span className="text-blue-600 dark:text-blue-500">Connect</span>
                 </span>
                 <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mt-1">
-                  Alumni Network
+                  CE Alumni Network
                 </span>
               </div>
             </Link>
             <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
-              The official alumni network of HKBK College of Engineering. Fostering lifelong connections, mentorship, and career growth among our global graduate community.
+              HKBK CE Connect — The official alumni network of HKBK College of Engineering. Fostering lifelong connections, mentorship, and career growth among our global graduate community.
             </p>
           </div>
 
@@ -82,7 +82,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-100 dark:border-slate-800 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-          <p>© {new Date().getFullYear()} HKBK Connect. Empowering Legacies.</p>
+          <p>© {new Date().getFullYear()} HKBK CE Connect. Empowering Legacies.</p>
           <div className="flex gap-8">
             <Link to="#" className="hover:text-gray-900 dark:text-white transition-colors">Privacy</Link>
             <Link to="#" className="hover:text-gray-900 dark:text-white transition-colors">Terms</Link>

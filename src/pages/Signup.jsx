@@ -209,14 +209,14 @@ export default function Signup() {
         toast.success(
           role === 'alumni'
             ? 'Account created! Waiting for admin approval.'
-            : 'Welcome to HKBK Connect!',
+            : 'Welcome to HKBK CE Connect!',
           { duration: 5000 }
         );
       } else {
         toast.success(
           role === 'alumni'
             ? 'Alumni account created! Waiting for admin approval.'
-            : 'Welcome to HKBK Connect! Account created successfully.',
+            : 'Welcome to HKBK CE Connect! Account created successfully.',
           { duration: 5000 }
         );
       }
@@ -224,7 +224,7 @@ export default function Signup() {
       toast.success(
         role === 'alumni'
           ? 'Alumni account created! Waiting for admin approval.'
-          : 'Welcome to HKBK Connect! Account created successfully.',
+          : 'Welcome to HKBK CE Connect! Account created successfully.',
         { duration: 5000 }
       );
     }
@@ -237,7 +237,7 @@ export default function Signup() {
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-slate-900">
       <AuthBackground
-        title={<>Join the <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-purple-200">HKBK Network.</span></>}
+        title={<>Join <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-purple-200">HKBK CE Connect.</span></>}
         subtitle={role === 'student'
           ? 'Connect with alumni, find mentorship, and unlock exclusive opportunities tailored for your growth.'
           : 'Give back to the community, hire top talent, and stay connected with your alma mater.'}

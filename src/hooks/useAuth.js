@@ -28,7 +28,7 @@ export function useAuth() {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('role, status, is_approved, full_name, avatar_url')
+        .select('role, status, is_approved, full_name, avatar_url, current_session_token')
         .eq('id', userId)
         .maybeSingle();
 
@@ -91,17 +91,51 @@ export function useAuth() {
       else setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      if (session) fetchUserProfile(session);
+      
+      if (session) {
+        if (_event === 'SIGNED_IN') {
+          // Generate a new device token for single-device login enforcement
+          const newToken = crypto.randomUUID();
+          localStorage.setItem('device_token', newToken);
+          await supabase.from('profiles').update({ current_session_token: newToken }).eq('id', session.user.id);
+        }
+        fetchUserProfile(session);
+      }
       else {
         setUserProfile(null);
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [fetchUserProfile]);
+    // Enforce Single Device Login via Realtime
+    let profileChannel = null;
+    if (session?.user?.id) {
+      profileChannel = supabase
+        .channel(`single_device_login_${session.user.id}_${Date.now()}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` }, (payload) => {
+          const dbToken = payload.new.current_session_token;
+          const localToken = localStorage.getItem('device_token');
+          
+          if (dbToken && localToken && dbToken !== localToken) {
+            import('react-hot-toast').then(toast => {
+              toast.default.error('Your account was logged in on another device. You have been logged out.');
+            });
+            handleLogout();
+          }
+        })
+        .subscribe();
+    }
+
+    return () => {
+      subscription.unsubscribe();
+      if (profileChannel) {
+        profileChannel.unsubscribe();
+        supabase.removeChannel(profileChannel);
+      }
+    };
+  }, [fetchUserProfile, handleLogout, session?.user?.id]);
 
   return {
     session,

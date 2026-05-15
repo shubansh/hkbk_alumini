@@ -45,7 +45,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-slate-900">
       <AuthBackground
-        title={<>Welcome back to the <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-purple-200">HKBK Network.</span></>}
+        title={<>Welcome back to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-purple-200">HKBK CE Connect.</span></>}
         subtitle="Re-connect with peers, explore career avenues, and mentor the next generation."
       />
 

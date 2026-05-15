@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   Settings,
   GraduationCap,
-  ExternalLink as LinkedinIcon
+  ExternalLink as LinkedinIcon,
+  Mail
 } from 'lucide-react';
 import ProfileAvatar from '../components/ProfileAvatar';
 import { useState, useEffect, useRef } from 'react';
@@ -48,6 +49,7 @@ const NAV_CONFIG = {
     { name: 'Gallery',            path: '/gallery',            icon: Image },
     { name: 'Events',             path: '/events',             icon: Calendar },
     { name: 'Inbound Messages',   path: '/messages',           icon: MessageSquare },
+    { name: 'Support Messages',   path: '/contact-messages',   icon: Mail },
     { name: 'Social Feed',        path: '/social-feed',        icon: LinkedinIcon },
     { name: 'Settings',           path: '/settings',           icon: Settings },
   ],
@@ -63,6 +65,7 @@ const ROLE_LABELS = {
 export default function DashboardLayout({ role, basePath = '/dashboard' }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { userProfile, handleLogout: authLogout } = useAuth();
   // local avatar state for optimistic upload preview
   const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatar_url ?? null);
@@ -83,6 +86,47 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
   useEffect(() => {
     setAvatarUrl(userProfile?.avatar_url ?? null);
   }, [userProfile?.avatar_url]);
+
+  // Unread Messages Logic
+  useEffect(() => {
+    let isMounted = true;
+    let channel = null;
+
+    if (!userProfile?.id) return;
+
+    const fetchUnread = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('receiver_id', userProfile.id)
+          .eq('is_read', false);
+        
+        if (!error && isMounted) {
+          setUnreadCount(count || 0);
+        }
+      } catch (err) {
+        console.error('Failed to fetch unread messages', err);
+      }
+    };
+
+    fetchUnread();
+
+    channel = supabase
+      .channel(`unread_messages_${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userProfile.id}` }, () => {
+        fetchUnread();
+      })
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      if (channel) {
+        channel.unsubscribe();
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [userProfile?.id]);
 
   const handleLogout = async () => {
     await authLogout();
@@ -112,26 +156,26 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/10 transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 md:static flex flex-col shadow-2xl shadow-blue-900/5 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      <div className={`fixed inset-y-0 left-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/10 transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 flex flex-col shadow-2xl shadow-blue-900/5 group/sidebar overflow-hidden ${
+        sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full md:w-[5.5rem] md:hover:w-72 w-72'
       }`}>
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
+        <div className="flex-1 flex flex-col h-full">
 
           {/* Logo */}
-          <div className="h-20 flex items-center px-6 border-b border-gray-200/50 dark:border-white/5">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30 flex-shrink-0">
-                <span className="text-white font-black text-lg">H</span>
+          <div className="h-20 flex items-center px-5 border-b border-gray-200/50 dark:border-white/5 whitespace-nowrap">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+                <img src="/logos/college/logo.png" className="w-10 h-10 object-contain drop-shadow-md dark:drop-shadow-[0_2px_4px_rgba(255,255,255,0.2)]" alt="HKBK Logo" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 transition-opacity duration-300 md:opacity-0 md:group-hover/sidebar:opacity-100">
                 <p className="text-base font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 tracking-tight leading-tight">
-                  HKBK Connect
+                  HKBK CE Connect
                 </p>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium truncate">{portalLabel}</p>
               </div>
             </div>
             <button 
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" 
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors absolute right-4" 
               onClick={() => setSidebarOpen(false)}
             >
               <X className="w-5 h-5" />
@@ -148,7 +192,7 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
                   : location.pathname === item.href || 
                     (item.href !== basePath && location.pathname.startsWith(item.href));
 
-                return item.external ? (
+                return (
                   <Link
                     key={item.name}
                     to={item.href}
@@ -159,50 +203,49 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100/60 dark:hover:bg-white/5'
                     }`}
                   >
-                    {isActive && <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600" />}
-                    <Icon className={`mr-3 h-5 w-5 relative z-10 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'}`} />
-                    <span className="relative z-10">{item.name}</span>
-                  </Link>
-                ) : (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`group flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 relative overflow-hidden ${
-                      isActive
-                        ? 'text-white shadow-md shadow-blue-500/20'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100/60 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    {isActive && <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600" />}
-                    <Icon className={`mr-3 h-5 w-5 relative z-10 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'}`} />
-                    <span className="relative z-10">{item.name}</span>
+                    {isActive && <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 dark:from-blue-600/20 dark:to-indigo-600/20" />}
+                    {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-600 to-indigo-600 rounded-r-full" />}
+                    <div className="flex items-center justify-center w-6 h-6 flex-shrink-0 ml-1">
+                      <Icon className={`w-5 h-5 relative z-10 transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400 drop-shadow-md' : 'text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'}`} />
+                    </div>
+                    <span className={`ml-3 relative z-10 flex-1 whitespace-nowrap transition-opacity duration-300 md:opacity-0 md:group-hover/sidebar:opacity-100 ${isActive ? 'text-blue-700 dark:text-blue-300 font-bold' : ''}`}>
+                      {item.name}
+                    </span>
+                    
+                    {/* Unread Messages Badge */}
+                    {item.name === 'Messages' && unreadCount > 0 && (
+                      <span className={`relative z-10 px-1.5 py-0.5 min-w-[20px] text-center rounded-full text-[10px] font-black transition-opacity duration-300 md:opacity-0 md:group-hover/sidebar:opacity-100 ${isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-red-500 text-white shadow-md shadow-red-500/20'}`}>
+                        {unreadCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
             </nav>
 
             {/* User Dropdown */}
-            <div className="mx-4 mt-6 relative">
+            <div className="mx-4 mt-6 mb-4 relative whitespace-nowrap">
               <button 
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-full flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 hover:shadow-md transition-all group"
+                className="w-full flex items-center p-3 rounded-2xl bg-gray-50/50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700 hover:shadow-md hover:bg-white dark:hover:bg-slate-800 transition-all group"
               >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <ProfileAvatar 
-                    userId={userProfile?.id}
-                    url={avatarUrl}
-                    name={userProfile?.full_name}
-                    size="md"
-                    editable={false}
-                  />
-                  <div className="text-left min-w-0">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{userProfile?.full_name || 'User'}</p>
-                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 capitalize truncate">{role}</p>
+                <div className="flex items-center gap-3 overflow-hidden w-full">
+                  <div className="flex-shrink-0 ml-[-2px]">
+                    <ProfileAvatar 
+                      userId={userProfile?.id}
+                      url={avatarUrl}
+                      name={userProfile?.full_name}
+                      size="sm"
+                      editable={false}
+                    />
                   </div>
-                </div>
-                <div className={`text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <div className="text-left min-w-0 transition-opacity duration-300 md:opacity-0 md:group-hover/sidebar:opacity-100 flex-1">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{userProfile?.full_name || 'User'}</p>
+                    <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 capitalize truncate">{role}</p>
+                  </div>
+                  <div className={`text-gray-400 transition-all duration-300 md:opacity-0 md:group-hover/sidebar:opacity-100 ${userMenuOpen ? 'rotate-180' : ''}`}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </div>
                 </div>
               </button>
 

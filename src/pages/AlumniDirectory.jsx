@@ -120,7 +120,7 @@ export default function AlumniDirectory() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Alumni Directory</h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Connect with HKBK graduates.
+            Connect with HKBK CE Connect graduates.
             {totalCount > 0 && (
               <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/40">
                 {totalCount} {totalCount === 1 ? 'alumni' : 'alumni'} registered

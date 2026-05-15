@@ -43,8 +43,8 @@ export default function OptimizedImage({
   showSkeleton = true,
   ...rest
 }) {
-  const [imgSrc,  setImgSrc]  = useState(src);
-  const [loaded,  setLoaded]  = useState(false);
+  const [imgSrc, setImgSrc] = useState(src);
+  const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
 
   // Re-sync when parent updates src (e.g. after cache-version bump)

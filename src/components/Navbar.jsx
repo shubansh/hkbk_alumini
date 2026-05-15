@@ -70,10 +70,10 @@ export default function Navbar() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xl font-black tracking-tighter text-gray-900 dark:text-white leading-none">
-                  HKBK <span className="text-blue-600 dark:text-blue-500">Connect</span>
+                  HKBK CE <span className="text-blue-600 dark:text-blue-500">Connect</span>
                 </span>
                 <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mt-1">
-                  Alumni Network
+                  CE Alumni Network
                 </span>
               </div>
             </Link>
@@ -98,10 +98,11 @@ export default function Navbar() {
             <div className="flex items-center gap-4 border-l border-gray-200 dark:border-slate-700 pl-8">
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-full hover:bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-300 transition-colors"
                 aria-label="Toggle theme"
+                title={theme === 'light' ? 'Switch to Dark' : 'Switch to Light'}
               >
-                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </button>
 
               {session ? (

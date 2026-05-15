@@ -1,5 +1,5 @@
 /**
- * siteImages.js — Centralized image path config for HKBK Connect
+ * siteImages.js — Centralized image path config for HKBK CE Connect
  *
  * ══════════════════════════════════════════════════════════════
  * HOW TO REPLACE AN IMAGE  (zero code changes required):

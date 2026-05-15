@@ -109,7 +109,7 @@ export default function AlumniDashboard() {
           <div>
             <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-500 mb-1">Account Pending Approval</h3>
             <p className="text-sm text-yellow-700 dark:text-yellow-400 leading-relaxed">
-              Welcome to the HKBK Alumni Network! Your account is currently being reviewed by an administrator to verify your alumni status. You will unlock all features once approved.
+              Welcome to HKBK CE Connect! Your account is currently being reviewed by an administrator to verify your alumni status. You will unlock all features once approved.
             </p>
           </div>
         </div>
@@ -169,7 +169,7 @@ export default function AlumniDashboard() {
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-gray-200/50 dark:border-white/10 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
             <Briefcase className="w-6 h-6" />
@@ -177,15 +177,6 @@ export default function AlumniDashboard() {
           <div>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Jobs Posted</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.jobsPosted}</p>
-          </div>
-        </div>
-        <div className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-gray-200/50 dark:border-white/10 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
-            <MessageSquare className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Messages</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.messages}</p>
           </div>
         </div>
         <div className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-gray-200/50 dark:border-white/10 shadow-sm flex items-center gap-4">

@@ -126,7 +126,7 @@ export default function StudentDashboard() {
           </h1>
           <p className="text-blue-100 font-semibold text-lg sm:text-xl mb-4 flex items-center justify-center md:justify-start gap-2">
             <Sparkles className="w-5 h-5 text-amber-300" /> 
-            {profile?.course_name ? `${profile.course_name} ${profile.year_of_study ? `• ${profile.year_of_study}` : ''}` : 'HKBK Connect Student'}
+            {profile?.course_name ? `${profile.course_name} ${profile.year_of_study ? `• ${profile.year_of_study}` : ''}` : 'HKBK CE Connect Student'}
           </p>
           <p className="text-blue-50/80 max-w-2xl text-base sm:text-lg leading-relaxed">
             Your hub for career growth. Connect with alumni mentors, discover exclusive job postings, and join upcoming university events.

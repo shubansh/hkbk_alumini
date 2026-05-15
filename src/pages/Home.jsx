@@ -33,6 +33,11 @@ import {
   usePlatformStats
 } from '../hooks/useHomeData';
 import { Skeleton } from '../components/Skeleton';
+import ContactHero from '../components/contact/ContactHero';
+import SupportCards from '../components/contact/SupportCards';
+import ContactForm from '../components/contact/ContactForm';
+import FAQSection from '../components/contact/FAQSection';
+import FacultyAvatar from '../components/faculty/FacultyAvatar';
 import Carousel from '../components/Carousel';
 import Lightbox from '../components/Lightbox';
 import Affiliations from '../components/Affiliations';
@@ -213,7 +218,7 @@ export default function Home() {
 
               {/* Subline */}
               <motion.p variants={fadeIn} className="text-sm text-white/70 leading-relaxed font-medium">
-                Join HKBK Connect — bridge generations, unlock mentorship,
+                Join HKBK CE Connect — bridge generations, unlock mentorship,
                 and tap into a global network of graduates.
               </motion.p>
 
@@ -525,34 +530,37 @@ export default function Home() {
                       variants={fadeIn}
                       custom={i}
                       viewport={{ once: true }}
-                      className="bg-white/5 border border-white/10 p-10 rounded-[3rem] flex flex-col items-center text-center group hover:bg-white/10 transition-all duration-500"
+                      className="group relative p-[1px] bg-gradient-to-b from-white/20 to-white/5 dark:from-white/10 dark:to-white/0 rounded-[3rem] hover:-translate-y-2 transition-all duration-500 shadow-xl shadow-black/5 hover:shadow-2xl hover:shadow-blue-500/10"
                     >
-                      <div className="relative mb-8">
-                        <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-blue-500/20 group-hover:border-blue-500/50 transition-colors">
-                          <img
-                            src={member?.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member?.name || 'Faculty')}&background=6366f1&color=fff`}
-                            alt={member?.name || 'Faculty'}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      <div className="bg-white/10 dark:bg-slate-900/40 backdrop-blur-md p-10 rounded-[3rem] h-full flex flex-col items-center text-center">
+                        <div className="relative mb-8 pt-4">
+                          {/* Premium Faculty Avatar */}
+                          <FacultyAvatar 
+                            src={member?.image_url} 
+                            name={member?.name} 
+                            className="w-40 h-40" 
+                            imagePosition="center 15%" 
                           />
+                          
+                          {member?.is_featured && (
+                            <div className="absolute top-0 right-0 -mr-2 bg-gradient-to-tr from-yellow-400 to-orange-500 text-slate-950 p-2.5 rounded-2xl shadow-2xl animate-pulse">
+                              <Award className="w-5 h-5" />
+                            </div>
+                          )}
                         </div>
-                        {member?.is_featured && (
-                          <div className="absolute -top-3 -right-3 bg-gradient-to-tr from-yellow-400 to-orange-500 text-slate-950 p-2.5 rounded-2xl shadow-2xl">
-                            <Award className="w-5 h-5" />
-                          </div>
-                        )}
-                      </div>
-                      <h3 className="text-2xl font-black mb-2 tracking-tight">{member?.name || 'Faculty Member'}</h3>
-                      <p className="text-blue-400 font-black text-xs uppercase tracking-[0.2em] mb-3">{member?.role || 'Professor'}</p>
-                      <p className="text-white/40 text-sm font-medium mb-8">{member?.department || 'Department of Engineering'}</p>
-                      <div className="mt-auto flex gap-3">
-                        <span className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">
-                          {member?.role?.includes('HOD') ? 'Leadership' : 'Faculty'}
-                        </span>
-                        {member?.is_featured && (
-                          <span className="px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest">
-                            Mentor
+                        <h3 className="text-2xl font-black mb-2 tracking-tight text-white">{member?.name || 'Faculty Member'}</h3>
+                        <p className="text-blue-400 font-black text-xs uppercase tracking-[0.2em] mb-3">{member?.role || 'Professor'}</p>
+                        <p className="text-white/60 text-sm font-medium mb-8 leading-relaxed">{member?.department || 'Department of Engineering'}</p>
+                        <div className="mt-auto flex flex-wrap justify-center gap-2">
+                          <span className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">
+                            {member?.role?.includes('HOD') ? 'Leadership' : 'Faculty'}
                           </span>
-                        )}
+                          {member?.is_featured && (
+                            <span className="px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest">
+                              Mentor
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   ))}
