@@ -160,17 +160,6 @@ export default function MessagesPage() {
         filter: `receiver_id=eq.${session.user.id}`
       }, payload => {
         if (payload.new.sender_id === selectedUser.id) {
-          setMessages(prev => [...prev, payload.new]);
-          scrollToBottom();
-        }
-      })
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages',
-        filter: `receiver_id=eq.${session.user.id}`
-      }, payload => {
-        if (payload.new.sender_id === selectedUser.id) {
           setMessages(prev => {
             if (prev.find(m => m.id === payload.new.id)) return prev;
             return [...prev, payload.new];
@@ -322,7 +311,7 @@ export default function MessagesPage() {
   );
 
   return (
-    <div className="flex h-full w-full bg-white dark:bg-slate-900 overflow-hidden animate-in fade-in duration-500">
+    <div className="absolute inset-0 flex bg-white dark:bg-slate-900 overflow-hidden animate-in fade-in duration-500">
       
       {/* Users List Sidebar */}
       <div className={`w-full md:w-80 border-r border-gray-200 dark:border-slate-700 flex flex-col ${selectedUser ? 'hidden md:flex' : 'flex'}`}>

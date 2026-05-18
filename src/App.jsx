@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -73,35 +74,72 @@ const PendingApprovalPage = ({ onLogout }) => (
   </div>
 );
 
-const AccountErrorPage = ({ onLogout }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900 p-4">
-    <div className="max-w-sm w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
-      <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
-        <span className="text-2xl">⚠️</span>
+const AccountErrorPage = ({ onLogout, onRetry }) => {
+  const [retrying, setRetrying] = useState(false);
+  
+  const handleRetry = async () => {
+    setRetrying(true);
+    await onRetry();
+    setRetrying(false);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900 p-4">
+      <div className="max-w-sm w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
+        <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl">⚠️</span>
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Account Recovery</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
+          Your account role could not be determined. This might be a temporary network issue or a missing profile.
+        </p>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleRetry}
+            disabled={retrying}
+            className="w-full px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+          >
+            {retrying ? 'Retrying...' : 'Retry Connection'}
+          </button>
+          <a
+            href="/"
+            className="w-full px-6 py-3 rounded-xl bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 font-semibold hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+          >
+            Return Home
+          </a>
+          <button
+            onClick={onLogout}
+            className="w-full px-6 py-3 rounded-xl text-red-600 dark:text-red-400 font-semibold hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+          >
+            Sign Out Completely
+          </button>
+        </div>
       </div>
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Account Error</h2>
-      <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
-        Your account role could not be determined. This usually means your profile wasn't saved after signup. Please sign out and sign up again, or contact support.
-      </p>
-      <button
-        onClick={onLogout}
-        className="w-full px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
-      >
-        Sign Out
-      </button>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const {
     session, userRole, loading,
     isAdmin, isStudent, isApprovedAlumni, isPendingAlumni,
-    handleLogout,
+    handleLogout, refetchProfile,
   } = useAuth();
 
   // ─── Route Guards ──────────────────────────────────────────────────────
+  /** Protects dashboard from missing roles */
+  const DashboardGuard = () => {
+    if (loading) return <FullScreenLoader />;
+    if (!session) return <Navigate to="/login" replace />;
+    
+    if (!userRole) {
+      return <AccountErrorPage onLogout={handleLogout} onRetry={refetchProfile} />;
+    }
+    
+    return <Outlet />;
+  };
+
   /** Redirects logged-out users to /login */
   const ProtectedRoute = ({ children }) => {
     if (loading)        return <FullScreenLoader />;
@@ -152,7 +190,7 @@ export default function App() {
     if (isStudent)        return <Navigate to="/dashboard/student"  replace />;
     if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
 
-    return <AccountErrorPage onLogout={handleLogout} />;
+    return <AccountErrorPage onLogout={handleLogout} onRetry={refetchProfile} />;
   };
 
   return (

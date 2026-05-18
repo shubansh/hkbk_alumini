@@ -156,9 +156,12 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/10 transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 flex flex-col shadow-2xl shadow-blue-900/5 group/sidebar overflow-hidden ${
-        sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full md:w-[5.5rem] md:hover:w-72 w-72'
-      }`}>
+      <div 
+        onMouseLeave={() => setUserMenuOpen(false)}
+        className={`fixed inset-y-0 left-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/10 transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 flex flex-col shadow-2xl shadow-blue-900/5 group/sidebar overflow-hidden ${
+          sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full md:w-[5.5rem] md:hover:w-72 w-72'
+        }`}
+      >
         <div className="flex-1 flex flex-col h-full">
 
           {/* Logo */}
@@ -264,8 +267,8 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
         </div>
       </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0 relative z-0 overflow-hidden">
+      {/* Main content area - Offsets the fixed collapsed sidebar on desktop */}
+      <div className="flex-1 flex flex-col min-w-0 relative z-0 overflow-hidden md:ml-[5.5rem]">
         {/* Background blobs */}
         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-500/5 dark:bg-blue-600/10 rounded-full filter blur-[120px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-500/5 dark:bg-purple-600/10 rounded-full filter blur-[140px] translate-x-1/3 translate-y-1/3 pointer-events-none" />

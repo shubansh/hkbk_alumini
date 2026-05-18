@@ -45,7 +45,8 @@ export function useAuth() {
       // Retry with backoff
       if (attempt < MAX) {
         await new Promise(r => setTimeout(r, attempt * 1200));
-        return fetchUserProfile(session, attempt + 1);
+        await fetchUserProfile(session, attempt + 1);
+        return;
       }
 
       // Final fallback: auth metadata
@@ -69,7 +70,8 @@ export function useAuth() {
       console.error('[Auth] Unexpected error:', err);
       if (attempt < 3) {
         await new Promise(r => setTimeout(r, attempt * 1200));
-        return fetchUserProfile(session, attempt + 1);
+        await fetchUserProfile(session, attempt + 1);
+        return;
       }
       setUserProfile({ role: null, status: null, is_approved: false });
     } finally {
@@ -78,20 +80,39 @@ export function useAuth() {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUserProfile(null);
-    setSession(null);
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+      await supabase.removeAllChannels(); // Clean all realtime listeners
+    } catch (e) {
+      console.warn('Signout error', e);
+    } finally {
+      localStorage.clear();
+      sessionStorage.clear();
+      setUserProfile(null);
+      setSession(null);
+      window.location.href = '/login'; // Hard redirect kills all stale state
+    }
+  }, []);
+
+  // ─── Hard Timeout Fallback ───────────────────────────────────────────────
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   // ─── Bootstrap ───────────────────────────────────────────────────────────
   useEffect(() => {
+    let mounted = true;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
       setSession(session);
       if (session) fetchUserProfile(session);
       else setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
       setSession(session);
       
       if (session) {
@@ -102,40 +123,42 @@ export function useAuth() {
           await supabase.from('profiles').update({ current_session_token: newToken }).eq('id', session.user.id);
         }
         fetchUserProfile(session);
-      }
-      else {
+      } else {
         setUserProfile(null);
         setLoading(false);
       }
     });
 
-    // Enforce Single Device Login via Realtime
-    let profileChannel = null;
-    if (session?.user?.id) {
-      profileChannel = supabase
-        .channel(`single_device_login_${session.user.id}_${Date.now()}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` }, (payload) => {
-          const dbToken = payload.new.current_session_token;
-          const localToken = localStorage.getItem('device_token');
-          
-          if (dbToken && localToken && dbToken !== localToken) {
-            import('react-hot-toast').then(toast => {
-              toast.default.error('Your account was logged in on another device. You have been logged out.');
-            });
-            handleLogout();
-          }
-        })
-        .subscribe();
-    }
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchUserProfile]);
+
+  // ─── Single Device Login Enforcement ─────────────────────────────────────
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const profileChannel = supabase
+      .channel(`single_device_login_${session.user.id}_${Date.now()}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` }, (payload) => {
+        const dbToken = payload.new.current_session_token;
+        const localToken = localStorage.getItem('device_token');
+        
+        if (dbToken && localToken && dbToken !== localToken) {
+          import('react-hot-toast').then(toast => {
+            toast.default.error('Your account was logged in on another device. You have been logged out.');
+          });
+          handleLogout();
+        }
+      })
+      .subscribe();
 
     return () => {
-      subscription.unsubscribe();
-      if (profileChannel) {
-        profileChannel.unsubscribe();
-        supabase.removeChannel(profileChannel);
-      }
+      profileChannel.unsubscribe();
+      supabase.removeChannel(profileChannel);
     };
-  }, [fetchUserProfile, handleLogout, session?.user?.id]);
+  }, [session?.user?.id, handleLogout]);
 
   return {
     session,
