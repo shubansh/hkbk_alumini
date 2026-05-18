@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -13,6 +13,7 @@ import Login          from './pages/Login';
 import Signup         from './pages/Signup';
 import AlumniDirectory from './pages/AlumniDirectory';
 import JobsPage       from './pages/JobsPage';
+import InternshipsPage from './pages/InternshipsPage';
 import EventsPage     from './pages/EventsPage';
 import ContactPage    from './pages/ContactPage';
 
@@ -26,6 +27,7 @@ import ProfileSettings  from './pages/ProfileSettings';
 // Admin pages
 import AdminDashboard     from './pages/admin/AdminDashboard';
 import AdminUsers         from './pages/admin/AdminUsers';
+import AdminInternships   from './pages/admin/AdminInternships';
 import AdminAlumniApproval from './pages/admin/AdminAlumniApproval';
 import AdminEvents        from './pages/admin/AdminEvents';
 import AdminGallery       from './pages/admin/AdminGallery';
@@ -133,7 +135,9 @@ export default function App() {
     if (loading) return <FullScreenLoader />;
     if (!session) return <Navigate to="/login" replace />;
     
-    if (!userRole) {
+    // Only show recovery screen if loading is strictly finished, 
+    // session exists, and we completely exhausted retries.
+    if (!userRole && !loading) {
       return <AccountErrorPage onLogout={handleLogout} onRetry={refetchProfile} />;
     }
     
@@ -160,7 +164,7 @@ export default function App() {
   const PublicRoute = ({ children }) => {
     if (loading) return <FullScreenLoader />;
     if (session) {
-      if (isAdmin)          return <Navigate to="/admin" replace />;
+      if (isAdmin)          return <Navigate to="/dashboard/admin" replace />;
       if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
       if (isApprovedAlumni) return <Navigate to="/dashboard/alumni" replace />;
       if (isStudent)        return <Navigate to="/dashboard/student" replace />;
@@ -172,7 +176,7 @@ export default function App() {
   const HomeRoute = () => {
     if (loading) return <FullScreenLoader />;
     if (session) {
-      if (isAdmin)          return <Navigate to="/admin" replace />;
+      if (isAdmin)          return <Navigate to="/dashboard/admin" replace />;
       if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
       if (isApprovedAlumni) return <Navigate to="/dashboard/alumni" replace />;
       if (isStudent)        return <Navigate to="/dashboard/student" replace />;
@@ -185,7 +189,7 @@ export default function App() {
     if (loading) return <FullScreenLoader />;
     console.log(`[Route] DashboardIndex role:${userRole}`);
 
-    if (isAdmin)          return <Navigate to="/admin"            replace />;
+    if (isAdmin)          return <Navigate to="/dashboard/admin"    replace />;
     if (isApprovedAlumni) return <Navigate to="/dashboard/alumni"   replace />;
     if (isStudent)        return <Navigate to="/dashboard/student"  replace />;
     if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
@@ -205,36 +209,19 @@ export default function App() {
             <Route path="/signup"    element={<PublicRoute><Signup /></PublicRoute>} />
             <Route path="/directory" element={<AlumniDirectory />} />
             <Route path="/jobs"      element={<JobsPage />} />
+            <Route path="/internships" element={<InternshipsPage />} />
             <Route path="/events"    element={<EventsPage />} />
             <Route path="/mentorship" element={<MentorshipPage />} />
             <Route path="/contact"    element={<ContactPage />} />
           </Route>
 
-          {/* ── Admin routes ─────────────────────────────────────── */}
-          <Route path="/admin" element={
-            <AdminRoute>
-              <DashboardLayout role="admin" basePath="/admin" />
-            </AdminRoute>
-          }>
-            <Route index element={<AdminDashboard />} />
-            <Route path="users"           element={<AdminUsers />} />
-            <Route path="people"          element={<AdminPeople />} />
-            <Route path="faculty"         element={<AdminFaculty />} />
-            <Route path="alumni-approval" element={<AdminAlumniApproval />} />
-            <Route path="events"          element={<AdminEvents />} />
-            <Route path="gallery"         element={<AdminGallery />} />
-            <Route path="settings"        element={<AdminSettings />} />
-            <Route path="posts"           element={<AdminPosts />} />
-            <Route path="mentorship"      element={<MentorshipPage />} />
-            <Route path="messages"        element={<AdminMessages />} />
-            <Route path="contact-messages" element={<AdminContactMessages />} />
-            <Route path="social-feed"     element={<AdminSocialFeed />} />
-          </Route>
+          {/* ── Legacy Admin Redirect ───────────────────────────────── */}
+          <Route path="/admin" element={<Navigate to="/dashboard/admin" replace />} />
 
           {/* ── User Dashboard routes ─────────────────────────────── */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              <DashboardLayout role={userRole} basePath="/dashboard" />
+              <DashboardLayout role={userRole} basePath={userRole === 'admin' ? '/dashboard/admin' : '/dashboard'} />
             </ProtectedRoute>
           }>
             <Route index           element={<DashboardIndex />} />
@@ -243,6 +230,28 @@ export default function App() {
             <Route path="mentorship" element={<MentorshipPage />} />
             <Route path="messages"   element={<MessagesPage />} />
             <Route path="settings"   element={<ProfileSettings />} />
+            
+            {/* ── Admin Sub-routes ───────────────────────────────── */}
+            <Route path="admin" element={
+              <AdminRoute>
+                <Outlet />
+              </AdminRoute>
+            }>
+              <Route index element={<AdminDashboard />} />
+              <Route path="users"           element={<AdminUsers />} />
+              <Route path="people"          element={<AdminPeople />} />
+              <Route path="faculty"         element={<AdminFaculty />} />
+              <Route path="alumni-approval" element={<AdminAlumniApproval />} />
+              <Route path="events"          element={<AdminEvents />} />
+              <Route path="gallery"         element={<AdminGallery />} />
+              <Route path="settings"        element={<AdminSettings />} />
+              <Route path="posts"           element={<AdminPosts />} />
+              <Route path="internships"     element={<AdminInternships />} />
+              <Route path="mentorship"      element={<MentorshipPage />} />
+              <Route path="messages"        element={<AdminMessages />} />
+              <Route path="contact-messages" element={<AdminContactMessages />} />
+              <Route path="social-feed"     element={<AdminSocialFeed />} />
+            </Route>
           </Route>
 
         </Routes>

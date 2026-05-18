@@ -8,6 +8,7 @@ export default function StudentDashboard() {
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState({ jobs: 0, events: 0, connections: 0 });
   const [recentEvents, setRecentEvents] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 

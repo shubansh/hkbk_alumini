@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import ProfileAvatar from '../components/ProfileAvatar';
-import { Save, User, Link as LinkIcon, Edit3 } from 'lucide-react';
+import { Save, User, Link as LinkIcon, Edit3, FileText, Upload, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function ProfileSettings() {
@@ -18,6 +18,7 @@ export default function ProfileSettings() {
     location: '',
   });
   const [saving, setSaving] = useState(false);
+  const [resumeUploading, setResumeUploading] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -27,6 +28,7 @@ export default function ProfileSettings() {
         company: userProfile.company || '',
         job_title: userProfile.job_title || '',
         location: userProfile.location || '',
+        resume_url: userProfile.resume_url || '',
       });
     }
   }, [userProfile]);
@@ -52,6 +54,56 @@ export default function ProfileSettings() {
       refetchProfile();
     }
     setSaving(false);
+  };
+
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !session?.user?.id) return;
+    
+    // Validate file type
+    const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Only PDF, DOC, and DOCX are allowed.');
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Resume must be under 5MB.');
+      return;
+    }
+
+    setResumeUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `${session.user.id}/resume_${Date.now()}.${ext}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('resumes')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('resumes')
+        .getPublicUrl(fileName);
+
+      const resumeUrl = publicUrlData.publicUrl;
+
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .update({ resume_url: resumeUrl })
+        .eq('id', session.user.id);
+
+      if (dbError) throw dbError;
+
+      toast.success('Resume uploaded successfully!');
+      refetchProfile();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to upload resume.');
+    } finally {
+      setResumeUploading(false);
+    }
   };
 
   return (
@@ -151,6 +203,48 @@ export default function ProfileSettings() {
         {/* Right Col: Preferences */}
         <div className="space-y-8">
           
+          {/* Resume Upload (Students & Alumni) */}
+          {(userProfile?.role === 'student' || userProfile?.role === 'alumni') && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-gray-100 dark:border-slate-800 shadow-xl">
+              <div className="flex items-center gap-3 border-b border-gray-100 dark:border-slate-800 pb-4 mb-6">
+                <FileText className="w-6 h-6 text-emerald-500" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Resume</h2>
+              </div>
+              
+              <div className="space-y-4">
+                {formData.resume_url && (
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl flex items-center justify-between">
+                    <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Resume Active</span>
+                    <a href={formData.resume_url} target="_blank" rel="noopener noreferrer" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">
+                      View
+                    </a>
+                  </div>
+                )}
+                <div className="relative">
+                  <input 
+                    type="file" 
+                    accept=".pdf,.doc,.docx" 
+                    onChange={handleResumeUpload}
+                    disabled={resumeUploading}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  <div className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-colors ${resumeUploading ? 'border-gray-300 bg-gray-50' : 'border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/10'}`}>
+                    {resumeUploading ? (
+                      <Loader2 className="w-8 h-8 text-emerald-500 animate-spin mb-2" />
+                    ) : (
+                      <Upload className="w-8 h-8 text-emerald-500 mb-2" />
+                    )}
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      {resumeUploading ? 'Uploading...' : 'Click to upload replace resume'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX (Max 5MB)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Theme Preferences */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-gray-100 dark:border-slate-800 shadow-xl">
             <div className="flex items-center gap-3 border-b border-gray-100 dark:border-slate-800 pb-4 mb-6">
               <Edit3 className="w-6 h-6 text-purple-500" />

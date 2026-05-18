@@ -131,7 +131,7 @@ export default function Navbar() {
                       </div>
                       
                       <Link
-                        to={userProfile?.role === 'admin' ? '/admin' : '/dashboard'}
+                        to={userProfile?.role === 'admin' ? '/dashboard/admin' : '/dashboard'}
                         className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700/50 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         onClick={() => setIsDropdownOpen(false)}
                       >

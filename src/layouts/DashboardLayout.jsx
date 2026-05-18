@@ -18,6 +18,7 @@ import {
   Mail
 } from 'lucide-react';
 import ProfileAvatar from '../components/ProfileAvatar';
+import NotificationBell from '../components/NotificationBell';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -28,6 +29,7 @@ const NAV_CONFIG = {
   student: [
     { name: 'Dashboard',        path: '',              icon: LayoutDashboard },
     { name: 'Find a Job',       path: '/jobs',         icon: Briefcase,       external: true },
+    { name: 'Internships',      path: '/internships',  icon: Briefcase,       external: true },
     { name: 'Find a Mentor',    path: '/mentorship',   icon: HeartHandshake },
     { name: 'Messages',         path: '/messages',     icon: MessageSquare },
     { name: 'Alumni Directory', path: '/directory',    icon: Search,          external: true },
@@ -36,6 +38,7 @@ const NAV_CONFIG = {
   alumni: [
     { name: 'Dashboard',          path: '',            icon: LayoutDashboard },
     { name: 'Post a Job',         path: '/jobs',       icon: Briefcase,       external: true },
+    { name: 'Internships',        path: '/internships',icon: Briefcase,       external: true },
     { name: 'Mentorship',         path: '/mentorship', icon: HeartHandshake },
     { name: 'Messages',           path: '/messages',   icon: MessageSquare },
     { name: 'Events',             path: '/events',     icon: Calendar,        external: true },
@@ -44,6 +47,7 @@ const NAV_CONFIG = {
     { name: 'Dashboard',          path: '',                    icon: LayoutDashboard },
     { name: 'Alumni Approval',    path: '/alumni-approval',    icon: ShieldCheck },
     { name: 'User Management',    path: '/users',              icon: Users },
+    { name: 'Internships',        path: '/internships',        icon: Briefcase },
     { name: 'Faculty Management', path: '/faculty',            icon: GraduationCap },
     { name: 'Faculty (People)',   path: '/people',             icon: Users },
     { name: 'Gallery',            path: '/gallery',            icon: Image },
@@ -274,17 +278,27 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
         <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-500/5 dark:bg-purple-600/10 rounded-full filter blur-[140px] translate-x-1/3 translate-y-1/3 pointer-events-none" />
 
         {/* Mobile header */}
-        <div className="md:hidden h-16 flex items-center px-4 border-b border-gray-200/50 dark:border-white/5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md relative z-20">
-          <button 
-            onClick={() => setSidebarOpen(true)} 
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <span className="ml-3 text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-            {portalLabel}
-          </span>
+        <div className="md:hidden h-16 flex items-center justify-between px-4 border-b border-gray-200/50 dark:border-white/5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md relative z-20">
+          <div className="flex items-center">
+            <button 
+              onClick={() => setSidebarOpen(true)} 
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <span className="ml-3 text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+              {portalLabel}
+            </span>
+          </div>
+          <NotificationBell />
         </div>
+
+        {/* Desktop top right actions */}
+        {!isMessageRoute && (
+          <div className="hidden md:flex absolute top-0 right-0 p-6 z-20">
+            <NotificationBell />
+          </div>
+        )}
 
         <main 
           ref={mainRef}

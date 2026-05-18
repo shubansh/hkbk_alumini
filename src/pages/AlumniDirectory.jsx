@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, GraduationCap, Building2, MapPin, Users, AlertCircle, BookOpen, RefreshCw } from 'lucide-react';
+import { Search, GraduationCap, Building2, MapPin, Users, AlertCircle, BookOpen, RefreshCw, ExternalLink } from 'lucide-react';
 import { Skeleton } from '../components/Skeleton';
+import toast from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
 export default function AlumniDirectory() {
+  const { session, userProfile } = useAuth();
   const [alumni, setAlumni]       = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
@@ -56,6 +59,31 @@ export default function AlumniDirectory() {
 
     return () => supabase.removeChannel(channel);
   }, []);
+
+  const handleRequestReferral = async (alumniId) => {
+    if (userProfile?.role !== 'student') {
+      toast.error('Only students can request referrals.');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.from('referral_requests').insert({
+        student_id: session.user.id,
+        alumni_id: alumniId,
+        status: 'pending'
+      });
+
+      if (error) {
+        if (error.code === '23505') toast.error('You have already requested a referral from this alumni.');
+        else throw error;
+      } else {
+        toast.success('Referral request sent successfully!');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to send referral request.');
+    }
+  };
 
   const filteredAlumni = alumni.filter(a => {
     const term = searchTerm.toLowerCase();
@@ -208,6 +236,16 @@ export default function AlumniDirectory() {
                   <span className="truncate">{person.location}</span>
                 </div>
               )}
+            </div>
+
+            {/* Actions */}
+            <div className="mt-6 pt-4 border-t border-gray-50 dark:border-slate-800/50">
+              <button 
+                onClick={() => handleRequestReferral(person.id)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold rounded-xl transition-colors"
+              >
+                Request Referral <ExternalLink className="w-4 h-4" />
+              </button>
             </div>
           </div>
         ))}

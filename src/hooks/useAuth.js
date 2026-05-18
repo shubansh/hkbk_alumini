@@ -21,11 +21,9 @@ export function useAuth() {
 
   // ─── Profile fetch with retry + metadata fallback ────────────────────────
   const fetchUserProfile = useCallback(async (session, attempt = 1) => {
-    const MAX = 3;
     try {
       const userId = session.user.id;
-      console.log(`[Auth] Fetching profile attempt ${attempt}/${MAX} uid:${userId}`);
-
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('role, status, is_approved, full_name, avatar_url, current_session_token')
@@ -33,28 +31,19 @@ export function useAuth() {
         .maybeSingle();
 
       if (data?.role) {
-        console.log(`[Auth] DB → role:${data.role} status:${data.status} is_approved:${data.is_approved}`);
         setUserProfile(data);
         setLoading(false);
         return;
       }
 
-      if (error) console.error(`[Auth] DB error (attempt ${attempt}):`, error.message);
-      else console.warn(`[Auth] Profile row not found (attempt ${attempt})`);
+      if (error) console.error(`[Auth] DB error:`, error.message);
+      else console.warn(`[Auth] Profile row not found`);
 
-      // Retry with backoff
-      if (attempt < MAX) {
-        await new Promise(r => setTimeout(r, attempt * 1200));
-        await fetchUserProfile(session, attempt + 1);
-        return;
-      }
-
-      // Final fallback: auth metadata
+      // Fallback: auth metadata
       const meta     = session.user.user_metadata;
       const metaRole = meta?.role;
       if (metaRole) {
         const metaStatus = metaRole === 'alumni' ? 'pending' : 'approved';
-        console.log(`[Auth] Metadata fallback → role:${metaRole}`);
         setUserProfile({
           role:        metaRole,
           status:      metaStatus,
@@ -63,16 +52,10 @@ export function useAuth() {
           avatar_url:  null,
         });
       } else {
-        console.error('[Auth] No role found anywhere');
         setUserProfile({ role: null, status: null, is_approved: false });
       }
     } catch (err) {
       console.error('[Auth] Unexpected error:', err);
-      if (attempt < 3) {
-        await new Promise(r => setTimeout(r, attempt * 1200));
-        await fetchUserProfile(session, attempt + 1);
-        return;
-      }
       setUserProfile({ role: null, status: null, is_approved: false });
     } finally {
       setLoading(false);
@@ -94,11 +77,7 @@ export function useAuth() {
     }
   }, []);
 
-  // ─── Hard Timeout Fallback ───────────────────────────────────────────────
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  // (Removed hard timeout fallback to allow fetchUserProfile retries to complete)
 
   // ─── Bootstrap ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -109,6 +88,9 @@ export function useAuth() {
       setSession(session);
       if (session) fetchUserProfile(session);
       else setLoading(false);
+    }).catch(err => {
+      console.error('[Auth] getSession error:', err);
+      if (mounted) setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {

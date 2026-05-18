@@ -115,7 +115,7 @@ export default function Home() {
 
   // Smart CTA destination based on auth state
   const joinDestination = session
-    ? isAdmin ? '/admin'
+    ? isAdmin ? '/dashboard/admin'
       : isApprovedAlumni ? '/dashboard/alumni'
         : isStudent ? '/dashboard/student'
           : '/dashboard'
