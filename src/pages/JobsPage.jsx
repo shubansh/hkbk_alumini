@@ -156,9 +156,9 @@ export default function JobsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Job Board</h1>
-          <p className="text-gray-500 dark:text-gray-400">
-            Exclusive opportunities from the HKBK CE Connect alumni network.
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Jobs & Internships</h1>
+          <p className="mt-2 text-gray-500 dark:text-gray-400 text-sm md:text-base">
+            Discover career opportunities and internships posted by our verified alumni network.
             {!loading && <span className="ml-2 text-blue-600 dark:text-blue-400 font-semibold">{jobs.length} open roles</span>}
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function JobsPage() {
             onClick={() => setIsPosting(!isPosting)}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:opacity-90 hover:-translate-y-0.5 transition-all duration-300 shadow-lg shadow-blue-500/30 flex-shrink-0"
           >
-            {isPosting ? 'Cancel' : '+ Post a Job'}
+            {isPosting ? 'Cancel' : '+ Post an Opportunity'}
           </button>
         )}
       </div>
@@ -177,7 +177,7 @@ export default function JobsPage() {
         <div className="bg-yellow-50/80 border border-yellow-200 p-4 mb-8 rounded-xl flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
           <p className="text-sm text-yellow-800">
-            <strong>Account Pending:</strong> You can post jobs once an administrator approves your alumni status.
+            <strong>Account Pending:</strong> You can post opportunities once an administrator approves your alumni status.
           </p>
         </div>
       )}
@@ -220,8 +220,8 @@ export default function JobsPage() {
       {/* Post Job Form */}
       {isPosting && canPostJob && (
         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 mb-8 shadow-xl">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-blue-500" /> Post a New Job
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
+            <Briefcase className="w-5 h-5 text-blue-600" /> Post a New Opportunity
           </h2>
           <form onSubmit={handlePostJob} className="space-y-4">
             {/* Row 1 */}
@@ -313,7 +313,7 @@ export default function JobsPage() {
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2"
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isSubmitting ? 'Posting...' : 'Publish Job'}
+                {isSubmitting ? 'Posting...' : 'Post Opportunity'}
               </button>
               <button type="button" onClick={() => setIsPosting(false)} className="px-6 py-2.5 rounded-xl font-semibold border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all text-sm">
                 Cancel
@@ -447,18 +447,18 @@ export default function JobsPage() {
           {!loading && filteredJobs.length === 0 && (
             <EmptyState
               icon={Briefcase}
-              title={searchTerm || locationFilter || typeFilter !== 'All' ? 'No matching jobs' : 'No jobs posted yet'}
+              title={searchTerm || locationFilter || typeFilter !== 'All' ? 'No matching opportunities' : 'No opportunities posted yet'}
               description={
                 searchTerm || locationFilter || typeFilter !== 'All'
                   ? 'Try adjusting your search or filters to find what you\'re looking for.'
-                  : 'Be the first to post a job opportunity for the HKBK CE Connect community!'
+                  : 'Be the first to post a job or internship opportunity for the HKBK CE Connect community!'
               }
               action={canPostJob ? (
                 <button
                   onClick={() => { setIsPosting(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-colors mt-4"
                 >
-                  Post a Job
+                  Post an Opportunity
                 </button>
               ) : null}
             />

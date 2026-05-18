@@ -28,8 +28,7 @@ import { useAuth } from '../hooks/useAuth';
 const NAV_CONFIG = {
   student: [
     { name: 'Dashboard',        path: '',              icon: LayoutDashboard },
-    { name: 'Find a Job',       path: '/jobs',         icon: Briefcase,       external: true },
-    { name: 'Internships',      path: '/internships',  icon: Briefcase,       external: true },
+    { name: 'Jobs & Internships', path: '/jobs',         icon: Briefcase,       external: true },
     { name: 'Find a Mentor',    path: '/mentorship',   icon: HeartHandshake },
     { name: 'Messages',         path: '/messages',     icon: MessageSquare },
     { name: 'Alumni Directory', path: '/directory',    icon: Search,          external: true },
@@ -37,8 +36,7 @@ const NAV_CONFIG = {
   ],
   alumni: [
     { name: 'Dashboard',          path: '',            icon: LayoutDashboard },
-    { name: 'Post a Job',         path: '/jobs',       icon: Briefcase,       external: true },
-    { name: 'Internships',        path: '/internships',icon: Briefcase,       external: true },
+    { name: 'Jobs & Internships', path: '/jobs',       icon: Briefcase,       external: true },
     { name: 'Mentorship',         path: '/mentorship', icon: HeartHandshake },
     { name: 'Messages',           path: '/messages',   icon: MessageSquare },
     { name: 'Events',             path: '/events',     icon: Calendar,        external: true },
@@ -47,7 +45,7 @@ const NAV_CONFIG = {
     { name: 'Dashboard',          path: '',                    icon: LayoutDashboard },
     { name: 'Alumni Approval',    path: '/alumni-approval',    icon: ShieldCheck },
     { name: 'User Management',    path: '/users',              icon: Users },
-    { name: 'Internships',        path: '/internships',        icon: Briefcase },
+
     { name: 'Faculty Management', path: '/faculty',            icon: GraduationCap },
     { name: 'Faculty (People)',   path: '/people',             icon: Users },
     { name: 'Gallery',            path: '/gallery',            icon: Image },

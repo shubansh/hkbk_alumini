@@ -84,7 +84,7 @@ export default function StudentDashboard() {
   );
 
   const quickActions = [
-    { title: 'Find a Job', desc: 'Explore opportunities posted by alumni', icon: Briefcase, to: '/jobs', color: 'from-blue-500 to-indigo-600' },
+    { title: 'Jobs & Internships', desc: 'Explore opportunities posted by alumni', icon: Briefcase, to: '/jobs', color: 'from-blue-500 to-indigo-600' },
     { title: 'Find a Mentor', desc: 'Connect with alumni for guidance', icon: Users, to: '/dashboard/mentorship', color: 'from-purple-500 to-fuchsia-600' },
     { title: 'Alumni Directory', desc: 'Search past graduates', icon: Search, to: '/directory', color: 'from-emerald-500 to-teal-600' },
     { title: 'Campus Events', desc: 'Join reunions & tech talks', icon: Calendar, to: '/events', color: 'from-orange-500 to-rose-600' }
@@ -142,7 +142,7 @@ export default function StudentDashboard() {
             <Briefcase className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Jobs</p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Opportunities</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.jobs}</p>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function StudentDashboard() {
         {/* Recent Jobs */}
         <div className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-8 rounded-3xl border border-gray-200/50 dark:border-white/10 shadow-sm flex flex-col">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2"><Briefcase className="w-5 h-5 text-blue-500"/> Latest Jobs</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2"><Briefcase className="w-5 h-5 text-indigo-500" /> Recent Opportunities</h2>
             <Link to="/jobs" className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">View All</Link>
           </div>
           

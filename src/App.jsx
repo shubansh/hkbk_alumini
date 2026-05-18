@@ -13,7 +13,6 @@ import Login          from './pages/Login';
 import Signup         from './pages/Signup';
 import AlumniDirectory from './pages/AlumniDirectory';
 import JobsPage       from './pages/JobsPage';
-import InternshipsPage from './pages/InternshipsPage';
 import EventsPage     from './pages/EventsPage';
 import ContactPage    from './pages/ContactPage';
 
@@ -27,7 +26,6 @@ import ProfileSettings  from './pages/ProfileSettings';
 // Admin pages
 import AdminDashboard     from './pages/admin/AdminDashboard';
 import AdminUsers         from './pages/admin/AdminUsers';
-import AdminInternships   from './pages/admin/AdminInternships';
 import AdminAlumniApproval from './pages/admin/AdminAlumniApproval';
 import AdminEvents        from './pages/admin/AdminEvents';
 import AdminGallery       from './pages/admin/AdminGallery';
@@ -209,7 +207,6 @@ export default function App() {
             <Route path="/signup"    element={<PublicRoute><Signup /></PublicRoute>} />
             <Route path="/directory" element={<AlumniDirectory />} />
             <Route path="/jobs"      element={<JobsPage />} />
-            <Route path="/internships" element={<InternshipsPage />} />
             <Route path="/events"    element={<EventsPage />} />
             <Route path="/mentorship" element={<MentorshipPage />} />
             <Route path="/contact"    element={<ContactPage />} />
@@ -246,7 +243,6 @@ export default function App() {
               <Route path="gallery"         element={<AdminGallery />} />
               <Route path="settings"        element={<AdminSettings />} />
               <Route path="posts"           element={<AdminPosts />} />
-              <Route path="internships"     element={<AdminInternships />} />
               <Route path="mentorship"      element={<MentorshipPage />} />
               <Route path="messages"        element={<AdminMessages />} />
               <Route path="contact-messages" element={<AdminContactMessages />} />

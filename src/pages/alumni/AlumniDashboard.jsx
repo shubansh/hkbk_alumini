@@ -118,7 +118,7 @@ export default function AlumniDashboard() {
   }
 
   const quickActions = [
-    { title: 'Post a Job', desc: 'Hire talent from your alma mater', icon: Briefcase, to: '/jobs', color: 'from-blue-500 to-indigo-600' },
+    { title: 'Post an Opportunity', desc: 'Hire talent from your alma mater', icon: Briefcase, to: '/jobs', color: 'from-blue-500 to-indigo-600' },
     { title: 'Upcoming Events', desc: 'Join reunions & networking', icon: Calendar, to: '/events', color: 'from-orange-500 to-rose-600' },
     { title: 'Mentorship', desc: 'Guide students in their career', icon: MessageSquare, to: '/dashboard/mentorship', color: 'from-emerald-500 to-teal-600' }
   ];
@@ -175,7 +175,7 @@ export default function AlumniDashboard() {
             <Briefcase className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Jobs Posted</p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Opportunities Posted</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.jobsPosted}</p>
           </div>
         </div>
@@ -249,7 +249,7 @@ export default function AlumniDashboard() {
 
         <div className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-8 rounded-3xl border border-gray-200/50 dark:border-white/10 shadow-sm flex flex-col">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2"><Briefcase className="w-5 h-5 text-blue-500"/> Your Job Postings</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2"><Briefcase className="w-5 h-5 text-blue-500"/> Your Opportunities</h2>
             <Link to="/jobs" className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">Manage Posts</Link>
           </div>
           
