@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Search, GraduationCap, Building2, MapPin, Users, AlertCircle, BookOpen, RefreshCw, ExternalLink } from 'lucide-react';
 import { Skeleton } from '../components/Skeleton';
 import toast from 'react-hot-toast';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AlumniDirectory() {
   const { session, userProfile } = useAuth();

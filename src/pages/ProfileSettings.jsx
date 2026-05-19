@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import ProfileAvatar from '../components/ProfileAvatar';
 import { Save, User, Link as LinkIcon, Edit3, FileText, Upload, Loader2 } from 'lucide-react';

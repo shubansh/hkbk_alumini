@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { Users, GraduationCap, Calendar, Image as ImageIcon, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

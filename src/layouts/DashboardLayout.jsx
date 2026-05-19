@@ -21,7 +21,7 @@ import ProfileAvatar from '../components/ProfileAvatar';
 import NotificationBell from '../components/NotificationBell';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 
 // ─── Role-based nav configuration ────────────────────────────────────────────
