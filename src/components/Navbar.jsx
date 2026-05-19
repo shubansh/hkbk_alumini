@@ -2,47 +2,28 @@ import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import { Menu, X, Sun, Moon, User, LayoutDashboard, LogOut, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const [session, setSession] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
+  // Use centralized auth context — no local supabase listeners needed
+  const { session, userProfile, handleLogout } = useAuth();
   const dropdownRef = useRef(null);
 
+  // Close dropdown when clicking outside
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchUserProfile(session.user.id);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchUserProfile(session.user.id);
-      else setUserProfile(null);
-    });
-
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      subscription.unsubscribe();
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const fetchUserProfile = async (userId) => {
-    const { data } = await supabase.from('profiles').select('role, avatar_url, full_name').eq('id', userId).single();
-    if (data) setUserProfile(data);
-  };
 
   const links = [
     { name: 'Home', path: '/' },
@@ -149,10 +130,9 @@ export default function Navbar() {
                       <div className="h-px bg-gray-100 dark:bg-slate-700/50 my-2"></div>
                       
                       <button
-                        onClick={async () => {
+                        onClick={() => {
                           setIsDropdownOpen(false);
-                          await supabase.auth.signOut();
-                          window.location.href = '/';
+                          handleLogout(); // Uses centralized logout: clears localStorage, all channels, redirects
                         }}
                         className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                       >

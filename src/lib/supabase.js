@@ -20,7 +20,6 @@ export const supabase = createClient(supabaseUrl ?? '', supabaseKey ?? '', {
     detectSessionInUrl: true,
     // Use localStorage (default) — required for session to survive hard refreshes on Vercel
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    storageKey: 'hkbk-auth',
     // Use PKCE flow for better security
     flowType: 'pkce',
   },
