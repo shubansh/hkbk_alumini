@@ -111,28 +111,30 @@ export function AuthProvider({ children }) {
 
   // ─── Logout ───────────────────────────────────────────────────────────────
   const handleLogout = useCallback(async () => {
-    // Remove device channel before sign-out to avoid spurious events
+    // Clean up device channel first
     if (deviceChannelRef.current) {
       try { await supabase.removeChannel(deviceChannelRef.current); } catch (_) {}
       deviceChannelRef.current = null;
     }
 
+    // Clear all local state FIRST so nothing re-triggers
+    try { localStorage.clear();   } catch (_) {}
+    try { sessionStorage.clear(); } catch (_) {}
+
     try {
-      await supabase.auth.signOut({ scope: 'local' });
+      // Use global scope (default) — this invalidates the refresh token on the
+      // Supabase server so autoRefreshToken cannot silently restore the session.
+      // scope:'local' only clears localStorage but leaves the server session live.
+      await supabase.auth.signOut();
       await supabase.removeAllChannels();
     } catch (e) {
       console.warn('[Auth] Signout error (non-fatal):', e);
     } finally {
-      try { localStorage.clear();   } catch (_) {}
-      try { sessionStorage.clear(); } catch (_) {}
-
-      if (mountedRef.current) {
-        setUserProfile(null);
-        setSession(null);
-      }
+      // Hard redirect — kills all in-memory React state
       window.location.replace('/login');
     }
   }, []);
+
 
   // ─── Bootstrap (Phase 1 + Phase 2) ───────────────────────────────────────
   useEffect(() => {
