@@ -1,13 +1,25 @@
 /**
- * AuthContext.jsx — Centralized, production-grade authentication provider.
+ * AuthContext.jsx — Production-grade centralized authentication provider.
  *
- * Architecture decisions:
- * - Single `onAuthStateChange` listener registered once at mount, never duplicated.
- * - `getSession()` is NOT called separately; we rely solely on `onAuthStateChange`
- *   which fires `INITIAL_SESSION` on mount with the restored session (Supabase v2 behavior).
- * - A hard 8-second timeout ensures the app never freezes indefinitely.
- * - Profile fetch is guarded by a `mounted` flag to prevent setState-after-unmount.
- * - The single-device enforcement channel is managed here (not in child components).
+ * ARCHITECTURE (Production-safe):
+ * ────────────────────────────────
+ * Phase 1 — Initial load:
+ *   Call getSession() directly. This synchronously reads localStorage and is
+ *   the most reliable way to restore a session on hard refresh on Vercel.
+ *
+ * Phase 2 — Subscribe to future changes:
+ *   Register onAuthStateChange AFTER getSession() resolves.
+ *   Skip the INITIAL_SESSION event (we already handled it in Phase 1).
+ *   Only react to SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.
+ *
+ * TIMEOUT STRATEGY:
+ *   A hard 8s timeout covers the ENTIRE init sequence (getSession + profile fetch).
+ *   It is NEVER cancelled early — only the component unmount cancels it.
+ *   If it fires, loading is forced to false so the UI unblocks.
+ *
+ * PROFILE FETCH:
+ *   Uses Promise.race with a 6s timeout so a slow/cold Supabase DB never
+ *   causes a permanent hang, even after the global timeout is absorbed.
  */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
@@ -16,39 +28,44 @@ import toast from 'react-hot-toast';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [session, setSession]       = useState(undefined); // undefined = not yet initialized
+  const [session,     setSession]     = useState(undefined); // undefined = not yet known
   const [userProfile, setUserProfile] = useState(null);
-  const [loading, setLoading]       = useState(true);
+  const [loading,     setLoading]     = useState(true);
 
-  // Use a ref to track mount state safely across async boundaries
-  const mountedRef = useRef(true);
-  // Track the single-device channel so we can clean it up on logout
+  const mountedRef       = useRef(true);
   const deviceChannelRef = useRef(null);
+  // Track whether init has completed so the listener skips the INITIAL_SESSION dupe
+  const initDoneRef      = useRef(false);
 
-  // ─── Derived values ──────────────────────────────────────────────────────
+  // ─── Derived helpers ──────────────────────────────────────────────────────
   const userRole         = userProfile?.role   ?? null;
   const userStatus       = userProfile?.status ?? null;
   const isAdmin          = userRole === 'admin';
   const isStudent        = userRole === 'student';
-  const isApprovedAlumni = userRole === 'alumni' && (userProfile?.is_approved === true || userStatus === 'approved');
+  const isApprovedAlumni = userRole === 'alumni' &&
+    (userProfile?.is_approved === true || userStatus === 'approved');
   const isPendingAlumni  = userRole === 'alumni' && !isApprovedAlumni;
 
-  // ─── Profile fetch ────────────────────────────────────────────────────────
+  // ─── Profile fetch (with per-fetch timeout) ───────────────────────────────
   const fetchUserProfile = useCallback(async (currentSession) => {
     if (!currentSession?.user?.id) {
-      if (mountedRef.current) {
-        setUserProfile(null);
-        setLoading(false);
-      }
+      if (mountedRef.current) { setUserProfile(null); setLoading(false); }
       return;
     }
 
     try {
-      const { data, error } = await supabase
+      // Race DB fetch against a 6-second timeout so cold-start DBs can't hang forever
+      const dbFetch = supabase
         .from('profiles')
         .select('id, role, status, is_approved, full_name, avatar_url, current_session_token')
         .eq('id', currentSession.user.id)
         .maybeSingle();
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timed out after 6s')), 6000)
+      );
+
+      const { data, error } = await Promise.race([dbFetch, timeoutPromise]);
 
       if (!mountedRef.current) return;
 
@@ -58,16 +75,20 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      if (error) {
-        console.error('[Auth] Profile fetch DB error:', error.message);
-      } else {
-        console.warn('[Auth] Profile row not found for user:', currentSession.user.id);
-      }
+      if (error) console.error('[Auth] DB profile error:', error.message);
+      else        console.warn('[Auth] Profile row not found:', currentSession.user.id);
 
-      // Fallback: use auth metadata embedded during signup
-      const meta = currentSession.user.user_metadata;
-      const metaRole = meta?.role;
+    } catch (err) {
+      // Covers both DB errors and the timeout rejection
+      console.warn('[Auth] Profile fetch failed:', err.message);
+      if (!mountedRef.current) return;
+    }
 
+    // ── Fallback: user_metadata written at signup ──────────────────────────
+    const meta     = currentSession.user.user_metadata;
+    const metaRole = meta?.role;
+
+    if (mountedRef.current) {
       if (metaRole) {
         setUserProfile({
           id:          currentSession.user.id,
@@ -78,148 +99,159 @@ export function AuthProvider({ children }) {
           avatar_url:  null,
         });
       } else {
-        // Profile genuinely missing — set null role so AccountErrorPage shows
         setUserProfile({ id: currentSession.user.id, role: null, status: null, is_approved: false });
       }
-    } catch (err) {
-      console.error('[Auth] Unexpected profile fetch error:', err);
-      if (mountedRef.current) {
-        setUserProfile({ role: null, status: null, is_approved: false });
-      }
-    } finally {
-      if (mountedRef.current) setLoading(false);
+      setLoading(false);
     }
-  }, []); // No deps — stable function, uses ref for mounted check
+  }, []);
 
   // ─── Logout ───────────────────────────────────────────────────────────────
   const handleLogout = useCallback(async () => {
-    // Clean up device channel first
+    // Remove device channel before sign-out to avoid spurious events
     if (deviceChannelRef.current) {
-      try {
-        await supabase.removeChannel(deviceChannelRef.current);
-      } catch (_) {}
+      try { await supabase.removeChannel(deviceChannelRef.current); } catch (_) {}
       deviceChannelRef.current = null;
     }
 
     try {
       await supabase.auth.signOut({ scope: 'local' });
-      // Remove all other realtime channels
       await supabase.removeAllChannels();
     } catch (e) {
-      console.warn('[Auth] Signout error:', e);
+      console.warn('[Auth] Signout error (non-fatal):', e);
     } finally {
-      // Clear all stored state
-      try { localStorage.clear(); } catch (_) {}
+      try { localStorage.clear();   } catch (_) {}
       try { sessionStorage.clear(); } catch (_) {}
 
-      // Reset React state before redirect
       if (mountedRef.current) {
         setUserProfile(null);
         setSession(null);
       }
-
-      // Hard redirect — kills all stale component state
       window.location.replace('/login');
     }
   }, []);
 
-  // ─── Core Auth Listener (single, stable, registered once) ────────────────
+  // ─── Bootstrap (Phase 1 + Phase 2) ───────────────────────────────────────
   useEffect(() => {
-    mountedRef.current = true;
+    mountedRef.current  = true;
+    initDoneRef.current = false;
 
-    // Hard timeout: if auth initialization takes >8 seconds, unblock the UI.
-    // Uses a ref-based flag so we don't read stale `loading` state from closure.
-    const timeoutId = setTimeout(() => {
+    // ── HARD TIMEOUT ────────────────────────────────────────────────────────
+    // Covers the ENTIRE init sequence. Never cleared early — only unmount
+    // cancels it. This guarantees the app NEVER freezes forever.
+    const hardTimeoutId = setTimeout(() => {
       if (mountedRef.current) {
-        console.warn('[Auth] Session initialization timed out after 8s. Unblocking UI.');
+        console.warn('[Auth] Hard timeout (8s) fired. Forcing loading=false.');
         setLoading(false);
-        // If session is still undefined after timeout, set it to null
-        setSession(prev => prev === undefined ? null : prev);
+        setSession(prev => (prev === undefined ? null : prev));
       }
     }, 8000);
 
-    /**
-     * `onAuthStateChange` is the SINGLE source of truth.
-     * On page load, Supabase fires `INITIAL_SESSION` with the restored session
-     * (or null if logged out). We do NOT call `getSession()` separately to
-     * avoid the race condition where two concurrent calls both set state.
-     */
+    // ── PHASE 1: getSession() ───────────────────────────────────────────────
+    // Most reliable way to restore a session on hard refresh / Vercel deploy.
+    // Reads synchronously from localStorage then validates with Supabase.
+    const initialize = async () => {
+      try {
+        const { data: { session: restored }, error } = await supabase.auth.getSession();
+
+        if (!mountedRef.current) return;
+        if (error) throw error;
+
+        setSession(restored);
+
+        if (restored) {
+          await fetchUserProfile(restored);
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('[Auth] getSession() failed:', err);
+        if (mountedRef.current) {
+          setSession(null);
+          setLoading(false);
+        }
+      } finally {
+        // Mark that Phase 1 is done so the listener can ignore INITIAL_SESSION
+        initDoneRef.current = true;
+      }
+    };
+
+    // ── PHASE 2: onAuthStateChange ──────────────────────────────────────────
+    // Handles everything AFTER initial load:
+    //   SIGNED_IN      → user just logged in from Login page
+    //   SIGNED_OUT     → logout or token invalidation
+    //   TOKEN_REFRESHED → Supabase auto-refreshed the JWT
+    // We intentionally SKIP INITIAL_SESSION because Phase 1 handles that.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mountedRef.current) return;
 
-        console.log(`[Auth] Event: ${event}`, newSession ? 'session exists' : 'no session');
+        // Skip the initial event — Phase 1 already handled session restoration
+        if (event === 'INITIAL_SESSION') return;
 
-        // Clear the timeout since auth has responded
-        clearTimeout(timeoutId);
+        console.log(`[Auth] ${event}`, newSession ? `user=${newSession.user.id}` : 'no session');
 
-        // Update session state
         setSession(newSession);
 
         if (newSession) {
           if (event === 'SIGNED_IN') {
-            // Enforce single-device login: write a unique token to the profile
+            // Write device token for single-device enforcement
             try {
-              const newToken = crypto.randomUUID();
-              localStorage.setItem('device_token', newToken);
+              const token = crypto.randomUUID();
+              localStorage.setItem('device_token', token);
               await supabase
                 .from('profiles')
-                .update({ current_session_token: newToken })
+                .update({ current_session_token: token })
                 .eq('id', newSession.user.id);
             } catch (e) {
-              console.warn('[Auth] Could not write device token:', e);
+              console.warn('[Auth] Device token write failed:', e);
             }
           }
-          // Fetch the full profile for every auth event that has a session
           await fetchUserProfile(newSession);
         } else {
-          // Signed out or session expired
           setUserProfile(null);
           setLoading(false);
         }
       }
     );
 
+    // Start Phase 1 after registering the listener (avoids missing events)
+    initialize();
+
     return () => {
       mountedRef.current = false;
-      clearTimeout(timeoutId);
+      clearTimeout(hardTimeoutId);
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile]); // fetchUserProfile is stable (no deps in useCallback)
+  }, [fetchUserProfile]);
 
-  // ─── Single Device Login Enforcement (separate effect, clean lifecycle) ───
+  // ─── Single Device Enforcement Channel ───────────────────────────────────
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId) return;
 
-    // Remove old channel if session user changed
+    // Always clean up old channel before creating a new one
     if (deviceChannelRef.current) {
       supabase.removeChannel(deviceChannelRef.current).catch(() => {});
       deviceChannelRef.current = null;
     }
 
-    const channel = supabase
-      .channel(`device_guard_${userId}_${Date.now()}`)
+    const ch = supabase
+      .channel(`device_guard_${userId}`) // Stable name — no Date.now() — prevents channel accumulation
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
         (payload) => {
           const dbToken    = payload.new?.current_session_token;
           const localToken = localStorage.getItem('device_token');
-
           if (dbToken && localToken && dbToken !== localToken) {
-            toast.error('Your account was signed in on another device. You have been logged out.');
+            toast.error('Signed in on another device — logging you out.');
             handleLogout();
           }
         }
       )
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.warn('[Auth] Device guard channel error');
-        }
-      });
+      .subscribe();
 
-    deviceChannelRef.current = channel;
+    deviceChannelRef.current = ch;
 
     return () => {
       if (deviceChannelRef.current) {
@@ -231,7 +263,7 @@ export function AuthProvider({ children }) {
 
   // ─── Context value ────────────────────────────────────────────────────────
   const value = {
-    session:         session ?? null, // normalize undefined → null for consumers
+    session:         session ?? null,
     userProfile,
     userRole,
     userStatus,
@@ -241,16 +273,16 @@ export function AuthProvider({ children }) {
     isApprovedAlumni,
     isPendingAlumni,
     handleLogout,
-    refetchProfile:  () => session && fetchUserProfile(session),
+    refetchProfile: () => session && fetchUserProfile(session),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === null) {
-    throw new Error('[useAuth] Must be used inside <AuthProvider>. Check your component tree.');
+  const ctx = useContext(AuthContext);
+  if (ctx === null) {
+    throw new Error('[useAuth] Must be used inside <AuthProvider>.');
   }
-  return context;
+  return ctx;
 }
