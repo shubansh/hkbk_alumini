@@ -69,14 +69,18 @@ export function AuthProvider({ children }) {
 
       if (!mountedRef.current) return;
 
-      if (data?.role) {
+      if (error) {
+        console.error('[Auth] DB profile error:', error.message);
+        // Don't return — fall through to metadata fallback below
+      } else if (data !== null && data !== undefined) {
+        // Row found — use it even if role is null (that case shows AccountErrorPage)
         setUserProfile(data);
         setLoading(false);
         return;
+      } else {
+        console.warn('[Auth] No profile row in DB for user:', currentSession.user.id);
+        // Fall through to metadata fallback
       }
-
-      if (error) console.error('[Auth] DB profile error:', error.message);
-      else        console.warn('[Auth] Profile row not found:', currentSession.user.id);
 
     } catch (err) {
       // Covers both DB errors and the timeout rejection
