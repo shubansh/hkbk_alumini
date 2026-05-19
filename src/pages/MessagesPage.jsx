@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Send, User, MessageSquare, Loader2, Trash2, Paperclip, FileText, Download } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function MessagesPage() {
-  const [session, setSession] = useState(null);
+  // Use centralized auth — no duplicate getSession needed
+  const { session } = useAuth();
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -16,78 +18,90 @@ export default function MessagesPage() {
   const location = useLocation();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchUsers(session.user.id);
-    });
-  }, []);
+    if (session?.user?.id) {
+      fetchUsers(session.user.id);
+    } else if (session === null) {
+      // Definitively no session — stop loading
+      setLoading(false);
+    }
+    // If session is undefined, AuthContext is still initializing — wait
+  }, [session?.user?.id]);
 
   const fetchUsers = async (currentUserId) => {
-    // 1. Fetch messages involving this user
-    const { data: msgs } = await supabase
-      .from('messages')
-      .select('*')
-      .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
-      .order('created_at', { ascending: false });
+    try {
+      // 1. Fetch messages involving this user
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false });
 
-    // 2. Fetch mentorship connections
-    const { data: mentorships } = await supabase
-      .from('mentorship_requests')
-      .select('*')
-      .or(`student_id.eq.${currentUserId},alumni_id.eq.${currentUserId}`);
+      // 2. Fetch mentorship connections (table may not exist — handle gracefully)
+      let mentorships = [];
+      try {
+        const { data: m } = await supabase
+          .from('mentorship_requests')
+          .select('*')
+          .or(`student_id.eq.${currentUserId},alumni_id.eq.${currentUserId}`);
+        mentorships = m ?? [];
+      } catch (_) { /* table missing or RLS blocked — safe to ignore */ }
 
-    const interactedIds = new Set();
+      const interactedIds = new Set();
 
-    msgs?.forEach(m => {
-      if (m.sender_id   !== currentUserId) interactedIds.add(m.sender_id);
-      if (m.receiver_id !== currentUserId) interactedIds.add(m.receiver_id);
-    });
-
-    mentorships?.forEach(m => {
-      if (m.student_id !== currentUserId) interactedIds.add(m.student_id);
-      if (m.alumni_id  !== currentUserId) interactedIds.add(m.alumni_id);
-    });
-
-    // Always include the contact passed via navigation state (Contact Poster flow)
-    const passedContactId = location.state?.contactId;
-    if (passedContactId && passedContactId !== currentUserId) {
-      interactedIds.add(passedContactId);
-    }
-
-    if (interactedIds.size === 0) {
-      setUsers([]);
-      setLoading(false);
-      return;
-    }
-
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, full_name, role, avatar_url')
-      .in('id', Array.from(interactedIds))
-      .neq('role', 'admin');
-
-    if (profilesError) console.error('[Messages] Profile fetch error:', profilesError);
-
-    if (profilesData) {
-      const usersWithMsgs = profilesData.map(user => {
-        const userMsgs = msgs?.filter(m => m.sender_id === user.id || m.receiver_id === user.id) ?? [];
-        return {
-          ...user,
-          lastMessage:     userMsgs[0]?.message || '',
-          lastMessageTime: userMsgs[0]?.created_at || '',
-        };
+      msgs?.forEach(m => {
+        if (m.sender_id   !== currentUserId) interactedIds.add(m.sender_id);
+        if (m.receiver_id !== currentUserId) interactedIds.add(m.receiver_id);
       });
 
-      usersWithMsgs.sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
-      setUsers(usersWithMsgs);
+      mentorships?.forEach(m => {
+        if (m.student_id !== currentUserId) interactedIds.add(m.student_id);
+        if (m.alumni_id  !== currentUserId) interactedIds.add(m.alumni_id);
+      });
 
-      // Auto-select passed contact
-      if (passedContactId) {
-        const contact = usersWithMsgs.find(u => u.id === passedContactId);
-        if (contact) setSelectedUser(contact);
+      // Always include the contact passed via navigation state
+      const passedContactId = location.state?.contactId;
+      if (passedContactId && passedContactId !== currentUserId) {
+        interactedIds.add(passedContactId);
       }
+
+      if (interactedIds.size === 0) {
+        setUsers([]);
+        return;
+      }
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, role, avatar_url')
+        .in('id', Array.from(interactedIds))
+        .neq('role', 'admin');
+
+      if (profilesError) console.error('[Messages] Profile fetch error:', profilesError);
+
+      if (profilesData) {
+        const usersWithMsgs = profilesData.map(user => {
+          const userMsgs = msgs?.filter(m => m.sender_id === user.id || m.receiver_id === user.id) ?? [];
+          return {
+            ...user,
+            lastMessage:     userMsgs[0]?.message || '',
+            lastMessageTime: userMsgs[0]?.created_at || '',
+          };
+        });
+
+        usersWithMsgs.sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+        setUsers(usersWithMsgs);
+
+        // Auto-select passed contact
+        if (passedContactId) {
+          const contact = usersWithMsgs.find(u => u.id === passedContactId);
+          if (contact) setSelectedUser(contact);
+        }
+      }
+    } catch (err) {
+      console.error('[Messages] fetchUsers error:', err);
+    } finally {
+      // ALWAYS stop loading, even if any query above failed
+      setLoading(false);
     }
-    setLoading(false);
   };
 
 
