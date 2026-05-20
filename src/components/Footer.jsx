@@ -4,22 +4,22 @@ import { useTheme } from '../contexts/ThemeContext';
 
 export default function Footer() {
   const { theme } = useTheme();
-  
+
   return (
     <footer className="bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 mt-auto transition-colors duration-300">
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-          
+
           {/* 1. About */}
           <div className="space-y-6">
             <Link to="/" className="flex items-center gap-3 group">
-              <img 
-                src={theme === 'dark' ? '/logos/college/logo-white.png' : '/logos/college/logo.png'} 
-                alt="HKBK Logo" 
+              <img
+                src={theme === 'dark' ? '/logos/college/logo-white.png' : '/logos/college/logo.png'}
+                alt="HKBK Logo"
                 className="h-10 w-auto object-contain group-hover:rotate-12 transition-transform duration-500"
                 onError={(e) => {
-                  e.target.onerror = null; 
+                  e.target.onerror = null;
                   e.target.src = "https://placehold.co/50x50/2563eb/ffffff?text=H";
                 }}
               />
@@ -55,7 +55,7 @@ export default function Footer() {
             <ul className="space-y-4 text-sm text-gray-500 dark:text-gray-400">
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                <span>HKBK College of Engineering<br/>Nagawara, Manyata Tech Park Road<br/>Bengaluru, 560045</span>
+                <span>HKBK College of Engineering<br />Nagawara, Manyata Tech Park Road<br />Bengaluru, 560045</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
@@ -82,7 +82,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-100 dark:border-slate-800 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-          <p>© {new Date().getFullYear()} HKBK CE Connect. Empowering Legacies.</p>
+          <p>© {new Date().getFullYear()} HKBK GROUP OF INSTITUTION.</p>
           <div className="flex gap-8">
             <Link to="#" className="hover:text-gray-900 dark:text-white transition-colors">Privacy</Link>
             <Link to="#" className="hover:text-gray-900 dark:text-white transition-colors">Terms</Link>
