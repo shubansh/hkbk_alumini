@@ -3,8 +3,10 @@ import { supabase } from '../../lib/supabase';
 import { Briefcase, Calendar, MessageSquare, ChevronRight, Sparkles, HeartHandshake } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useJobs } from '../../hooks/useJobs';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function AlumniDashboard() {
+  const { session } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,7 +20,6 @@ export default function AlumniDashboard() {
   useEffect(() => {
     async function fetchProfileAndStats() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           const { data, error } = await supabase
             .from('profiles')

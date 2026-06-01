@@ -9,10 +9,12 @@ import { EmptyState } from '../components/EmptyState';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useJobs } from '../hooks/useJobs';
+import { useAuth } from '../contexts/AuthContext';
 
 const JOB_TYPES = ['Full-time', 'Internship', 'Contract', 'Part-time'];
 
 export default function JobsPage() {
+  const { session } = useAuth();
   const { jobs, loading } = useJobs({ status: 'approved' });
   const [userProfile, setUserProfile] = useState(null);
   const [isPosting, setIsPosting] = useState(false);
@@ -37,7 +39,6 @@ export default function JobsPage() {
 
   useEffect(() => {
     async function fetchUser() {
-      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data } = await supabase
           .from('profiles')
@@ -48,7 +49,7 @@ export default function JobsPage() {
       }
     }
     fetchUser();
-  }, []);
+  }, [session]);
 
   const handlePostJob = async (e) => {
     e.preventDefault();

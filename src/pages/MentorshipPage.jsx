@@ -5,8 +5,10 @@ import { Skeleton } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function MentorshipPage() {
+  const { session } = useAuth();
   const [role, setRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -18,7 +20,6 @@ export default function MentorshipPage() {
   useEffect(() => {
     async function init() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
         setCurrentUser(session?.user || null);
 
         let userRole = 'student';
@@ -70,7 +71,7 @@ export default function MentorshipPage() {
       }
     }
     init();
-  }, []);
+  }, [session]);
 
   const handleRequestMentorship = async (mentorId) => {
     try {

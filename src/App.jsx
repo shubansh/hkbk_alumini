@@ -39,14 +39,9 @@ import AdminSocialFeed  from './pages/admin/AdminSocialFeed';
 
 // ─── Shared UI Pieces ──────────────────────────────────────────────────────
 
-const FullScreenLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-indigo-950">
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-14 h-14 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
-      <p className="text-blue-300 font-medium tracking-wide">Verifying session...</p>
-    </div>
-  </div>
-);
+// Return null to avoid jarring flashes on hard refreshes or rapid navigations.
+// The background will fall back to the global body styling.
+const FullScreenLoader = () => null;
 
 const PendingApprovalPage = ({ onLogout }) => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-4">

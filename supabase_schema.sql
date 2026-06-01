@@ -285,10 +285,10 @@ BEGIN
   INSERT INTO public.profiles (id, full_name, email, role, status)
   VALUES (
     new.id,
-    new.raw_user_meta_data->>'full_name',
+    COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
     new.email,
     COALESCE(new.raw_user_meta_data->>'role', 'student'),
-    CASE WHEN new.raw_user_meta_data->>'role' = 'alumni' THEN 'pending' ELSE 'approved' END
+    CASE WHEN COALESCE(new.raw_user_meta_data->>'role', 'student') = 'alumni' THEN 'pending' ELSE 'approved' END
   );
   RETURN new;
 END;

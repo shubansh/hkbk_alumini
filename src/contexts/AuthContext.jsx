@@ -57,7 +57,7 @@ export function AuthProvider({ children }) {
       // Race DB fetch against a 6-second timeout so cold-start DBs can't hang forever
       const dbFetch = supabase
         .from('profiles')
-        .select('id, role, status, is_approved, full_name, avatar_url, current_session_token')
+        .select('*')
         .eq('id', currentSession.user.id)
         .maybeSingle();
 
@@ -79,7 +79,29 @@ export function AuthProvider({ children }) {
         return;
       } else {
         console.warn('[Auth] No profile row in DB for user:', currentSession.user.id);
-        // Fall through to metadata fallback
+        // ACCOUNT RECOVERY: Auto-create missing profile (e.g. if Google Auth trigger failed)
+        const meta = currentSession.user.user_metadata;
+        const recoveredProfile = {
+          id: currentSession.user.id,
+          email: currentSession.user.email,
+          full_name: meta?.full_name ?? meta?.name ?? currentSession.user.email?.split('@')[0] ?? 'User',
+          role: meta?.role ?? 'student',
+          status: (meta?.role === 'alumni') ? 'pending' : 'approved',
+        };
+        
+        const { data: newData, error: insertErr } = await supabase
+          .from('profiles')
+          .insert([recoveredProfile])
+          .select('*')
+          .maybeSingle();
+          
+        if (!insertErr && newData) {
+          console.log('[Auth] Successfully recovered missing profile');
+          setUserProfile(newData);
+          setLoading(false);
+          return;
+        }
+        // Fall through to metadata fallback if recovery also fails
       }
 
     } catch (err) {
