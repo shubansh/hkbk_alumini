@@ -72,8 +72,7 @@ export default function MessagesPage() {
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, role, avatar_url')
-        .in('id', Array.from(interactedIds))
-        .neq('role', 'admin');
+        .in('id', Array.from(interactedIds));
 
       if (profilesError) console.error('[Messages] Profile fetch error:', profilesError);
 

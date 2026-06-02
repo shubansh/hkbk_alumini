@@ -1,43 +1,34 @@
 /**
- * AuthContext.jsx — Production-grade centralized authentication provider.
+ * AuthContext.jsx — Production-safe, StrictMode-safe authentication provider.
  *
- * ARCHITECTURE (Production-safe):
- * ────────────────────────────────
- * Phase 1 — Initial load:
- *   Call getSession() directly. This synchronously reads localStorage and is
- *   the most reliable way to restore a session on hard refresh on Vercel.
+ * ARCHITECTURE:
+ * ─────────────
+ * 1. Register onAuthStateChange listener FIRST (so no events are missed).
+ * 2. Manually call getSession() to restore session on page load.
+ * 3. `initialized` is set to true ONLY after the startup sequence finishes.
+ * 4. Route guards MUST wait for `initialized` before making any redirect decision.
+ * 5. Profile fetch uses DB as source of truth; metadata is the last-resort fallback.
  *
- * Phase 2 — Subscribe to future changes:
- *   Register onAuthStateChange AFTER getSession() resolves.
- *   Skip the INITIAL_SESSION event (we already handled it in Phase 1).
- *   Only react to SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.
- *
- * TIMEOUT STRATEGY:
- *   A hard 8s timeout covers the ENTIRE init sequence (getSession + profile fetch).
- *   It is NEVER cancelled early — only the component unmount cancels it.
- *   If it fires, loading is forced to false so the UI unblocks.
- *
- * PROFILE FETCH:
- *   Uses Promise.race with a 6s timeout so a slow/cold Supabase DB never
- *   causes a permanent hang, even after the global timeout is absorbed.
+ * RULES THAT MUST NEVER BE VIOLATED:
+ * ────────────────────────────────────
+ * - NEVER call localStorage.clear() — it destroys the Supabase session token.
+ * - NEVER define route guards inside a React component function body.
+ * - NEVER redirect before `initialized` is true.
+ * - NEVER block setInitialized(true) inside a `mountedRef` check in `finally`.
  */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [session,     setSession]     = useState(undefined); // undefined = not yet known
+  const [session,     setSession]     = useState(null);
   const [userProfile, setUserProfile] = useState(null);
-  const [loading,     setLoading]     = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
-  const mountedRef       = useRef(true);
-  const deviceChannelRef = useRef(null);
-  // Track whether init has completed so the listener skips the INITIAL_SESSION dupe
-  const initDoneRef      = useRef(false);
+  const mountedRef = useRef(true);
 
-  // ─── Derived helpers ──────────────────────────────────────────────────────
+  // ─── Derived role helpers ──────────────────────────────────────────────────
   const userRole         = userProfile?.role   ?? null;
   const userStatus       = userProfile?.status ?? null;
   const isAdmin          = userRole === 'admin';
@@ -46,262 +37,260 @@ export function AuthProvider({ children }) {
     (userProfile?.is_approved === true || userStatus === 'approved');
   const isPendingAlumni  = userRole === 'alumni' && !isApprovedAlumni;
 
-  // ─── Profile fetch (with per-fetch timeout) ───────────────────────────────
-  const fetchUserProfile = useCallback(async (currentSession) => {
+  // ─── fetchProfile ─────────────────────────────────────────────────────────
+  // Fetches the profile row for the given session's user.
+  // Always resolves — never throws to the caller.
+  // Priority: DB row > metadata fallback (never leaves role as null if user exists).
+  const fetchProfile = useCallback(async (currentSession) => {
     if (!currentSession?.user?.id) {
-      if (mountedRef.current) { setUserProfile(null); setLoading(false); }
+      if (mountedRef.current) setUserProfile(null);
       return;
     }
 
-    try {
-      // Race DB fetch against a 6-second timeout so cold-start DBs can't hang forever
-      const dbFetch = supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentSession.user.id)
-        .maybeSingle();
+    const uid   = currentSession.user.id;
+    const email = currentSession.user.email ?? '';
+    const meta  = currentSession.user.user_metadata ?? {};
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timed out after 6s')), 6000)
+    console.log('[Auth] fetchProfile for uid:', uid);
+
+    // ── Step 1: Try the database (via SECURITY DEFINER RPC to bypass RLS) ────
+    try {
+      // Use get_my_profile() RPC first — it's SECURITY DEFINER so RLS cannot block it.
+      // Falls back to direct table query if the function doesn't exist yet.
+      let data = null;
+      let error = null;
+
+      const rpcTimeout = new Promise((_, rej) =>
+        setTimeout(() => rej(new Error('rpc-timeout')), 7000)
       );
 
-      const { data, error } = await Promise.race([dbFetch, timeoutPromise]);
+      try {
+        const rpcResult = await Promise.race([
+          supabase.rpc('get_my_profile'),
+          rpcTimeout,
+        ]);
+        data  = rpcResult.data?.[0] ?? rpcResult.data ?? null;
+        error = rpcResult.error;
+        if (error) console.warn('[Auth] RPC get_my_profile error:', error.message);
+        else console.log('[Auth] RPC profile. role =', data?.role, '| id =', data?.id);
+      } catch (rpcErr) {
+        console.warn('[Auth] RPC failed, falling back to direct query:', rpcErr.message);
+        // Fallback: direct table query
+        const fallbackTimeout = new Promise((_, rej) =>
+          setTimeout(() => rej(new Error('direct-timeout')), 7000)
+        );
+        const fallbackResult = await Promise.race([
+          supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
+          fallbackTimeout,
+        ]);
+        data  = fallbackResult.data;
+        error = fallbackResult.error;
+        console.log('[Auth] Direct query. role =', data?.role, '| error =', error?.message);
+      }
 
       if (!mountedRef.current) return;
 
       if (error) {
-        console.error('[Auth] DB profile error:', error.message);
-        // Don't return — fall through to metadata fallback below
-      } else if (data !== null && data !== undefined) {
-        // Row found — use it even if role is null (that case shows AccountErrorPage)
+        console.warn('[Auth] Profile DB error (will use fallback):', error.message);
+      } else if (data) {
+        // ✅ DB row found — this is the authoritative source of truth
+        console.log('[Auth] Profile loaded from DB. role =', data.role, '| id =', data.id);
         setUserProfile(data);
-        setLoading(false);
         return;
       } else {
-        console.warn('[Auth] No profile row in DB for user:', currentSession.user.id);
-        // ACCOUNT RECOVERY: Auto-create missing profile (e.g. if Google Auth trigger failed)
-        const meta = currentSession.user.user_metadata;
-        const recoveredProfile = {
-          id: currentSession.user.id,
-          email: currentSession.user.email,
-          full_name: meta?.full_name ?? meta?.name ?? currentSession.user.email?.split('@')[0] ?? 'User',
-          role: meta?.role ?? 'student',
-          status: (meta?.role === 'alumni') ? 'pending' : 'approved',
-        };
-        
-        const { data: newData, error: insertErr } = await supabase
+        // No row found by auth.uid() — check if there's a row with matching email
+        // (This happens when admin was promoted via SQL UPDATE by email instead of UUID)
+        console.warn('[Auth] No profile row for uid:', uid, '— trying email fallback:', email);
+
+        const { data: emailMatch } = await supabase
           .from('profiles')
-          .insert([recoveredProfile])
           .select('*')
+          .eq('email', email)
           .maybeSingle();
-          
-        if (!insertErr && newData) {
-          console.log('[Auth] Successfully recovered missing profile');
-          setUserProfile(newData);
-          setLoading(false);
+
+        if (emailMatch && mountedRef.current) {
+          console.log('[Auth] Found profile by email. role =', emailMatch.role, '| profile_id =', emailMatch.id, '| auth_id =', uid);
+          // Use the profile as-is (correct role) and silently fix the ID mismatch in DB
+          if (emailMatch.id !== uid) {
+            console.warn('[Auth] ID mismatch detected. profile.id =', emailMatch.id, 'auth.uid =', uid, '— fixing...');
+            supabase
+              .from('profiles')
+              .update({ id: uid })
+              .eq('email', email)
+              .then(({ error: fixErr }) => {
+                if (fixErr) console.warn('[Auth] Could not auto-fix ID mismatch:', fixErr.message);
+                else console.log('[Auth] ID mismatch fixed successfully.');
+              });
+          }
+          setUserProfile({ ...emailMatch, id: uid });
           return;
         }
-        // Fall through to metadata fallback if recovery also fails
-      }
 
+        // Truly no profile anywhere — create one
+        console.warn('[Auth] No profile found by email either. Auto-creating...');
+        const meta = currentSession.user.user_metadata ?? {};
+        const candidate = {
+          id:        uid,
+          email,
+          full_name: meta.full_name ?? meta.name ?? email.split('@')[0] ?? 'User',
+          role:      meta.role ?? 'student',
+          status:    meta.role === 'alumni' ? 'pending' : 'approved',
+        };
+
+        const insertFence = new Promise((_, rej) =>
+          setTimeout(() => rej(new Error('insert-timeout')), 5000)
+        );
+
+        const { data: created, error: insertErr } = await Promise.race([
+          supabase.from('profiles').insert([candidate]).select('*').maybeSingle(),
+          insertFence,
+        ]);
+
+        if (!insertErr && created && mountedRef.current) {
+          console.log('[Auth] Auto-created profile. role =', created.role);
+          setUserProfile(created);
+          return;
+        }
+
+        if (insertErr) {
+          console.warn('[Auth] Auto-create failed:', insertErr.message);
+        }
+      }
     } catch (err) {
-      // Covers both DB errors and the timeout rejection
-      console.warn('[Auth] Profile fetch failed:', err.message);
-      if (!mountedRef.current) return;
+      console.warn('[Auth] fetchProfile DB exception:', err.message);
     }
 
-    // ── Fallback: user_metadata written at signup ──────────────────────────
-    const meta     = currentSession.user.user_metadata;
-    const metaRole = meta?.role;
+    if (!mountedRef.current) return;
 
-    if (mountedRef.current) {
-      if (metaRole) {
-        setUserProfile({
-          id:          currentSession.user.id,
-          role:        metaRole,
-          status:      metaRole === 'alumni' ? 'pending' : 'approved',
-          is_approved: metaRole !== 'alumni',
-          full_name:   meta?.full_name ?? currentSession.user.email?.split('@')[0] ?? 'User',
-          avatar_url:  null,
-        });
-      } else {
-        setUserProfile({ id: currentSession.user.id, role: null, status: null, is_approved: false });
-      }
-      setLoading(false);
-    }
+    // ── Step 2: Metadata fallback ────────────────────────────────────────────
+    // Only reached when the DB is unreachable. Use metadata as best-effort.
+    const metaRole = meta.role ?? null;
+    const name     = meta.full_name ?? meta.name ?? email.split('@')[0] ?? 'User';
+
+    console.warn('[Auth] Using metadata fallback. metaRole =', metaRole);
+
+    setUserProfile(
+      metaRole
+        ? {
+            id:          uid,
+            role:        metaRole,
+            status:      metaRole === 'alumni' ? 'pending' : 'approved',
+            is_approved: metaRole !== 'alumni',
+            full_name:   name,
+            email,
+            avatar_url:  null,
+          }
+        : {
+            id:          uid,
+            role:        null,
+            status:      null,
+            is_approved: false,
+            full_name:   name,
+            email,
+          }
+    );
   }, []);
 
-  // ─── Logout ───────────────────────────────────────────────────────────────
-  const handleLogout = useCallback(async () => {
-    // Clean up device channel first
-    if (deviceChannelRef.current) {
-      try { await supabase.removeChannel(deviceChannelRef.current); } catch (_) {}
-      deviceChannelRef.current = null;
-    }
-
-    // Clear all local state FIRST so nothing re-triggers
-    try { localStorage.clear();   } catch (_) {}
-    try { sessionStorage.clear(); } catch (_) {}
-
-    try {
-      // Use global scope (default) — this invalidates the refresh token on the
-      // Supabase server so autoRefreshToken cannot silently restore the session.
-      // scope:'local' only clears localStorage but leaves the server session live.
-      await supabase.auth.signOut();
-      await supabase.removeAllChannels();
-    } catch (e) {
-      console.warn('[Auth] Signout error (non-fatal):', e);
-    } finally {
-      // Hard redirect — kills all in-memory React state
-      window.location.replace('/login');
-    }
-  }, []);
-
-
-  // ─── Bootstrap (Phase 1 + Phase 2) ───────────────────────────────────────
+  // ─── Bootstrap ────────────────────────────────────────────────────────────
   useEffect(() => {
-    mountedRef.current  = true;
-    initDoneRef.current = false;
+    // Reset mount flag on every effect run (StrictMode runs effects twice in dev)
+    mountedRef.current = true;
 
-    // ── HARD TIMEOUT ────────────────────────────────────────────────────────
-    // Covers the ENTIRE init sequence. Never cleared early — only unmount
-    // cancels it. This guarantees the app NEVER freezes forever.
-    const hardTimeoutId = setTimeout(() => {
-      if (mountedRef.current) {
-        console.warn('[Auth] Hard timeout (8s) fired. Forcing loading=false.');
-        setLoading(false);
-        setSession(prev => (prev === undefined ? null : prev));
-      }
-    }, 8000);
-
-    // ── PHASE 1: getSession() ───────────────────────────────────────────────
-    // Most reliable way to restore a session on hard refresh / Vercel deploy.
-    // Reads synchronously from localStorage then validates with Supabase.
-    const initialize = async () => {
-      try {
-        const { data: { session: restored }, error } = await supabase.auth.getSession();
-
-        if (!mountedRef.current) return;
-        if (error) throw error;
-
-        setSession(restored);
-
-        if (restored) {
-          await fetchUserProfile(restored);
-        } else {
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('[Auth] getSession() failed:', err);
-        if (mountedRef.current) {
-          setSession(null);
-          setLoading(false);
-        }
-      } finally {
-        // Mark that Phase 1 is done so the listener can ignore INITIAL_SESSION
-        initDoneRef.current = true;
-      }
-    };
-
-    // ── PHASE 2: onAuthStateChange ──────────────────────────────────────────
-    // Handles everything AFTER initial load:
-    //   SIGNED_IN      → user just logged in from Login page
-    //   SIGNED_OUT     → logout or token invalidation
-    //   TOKEN_REFRESHED → Supabase auto-refreshed the JWT
-    // We intentionally SKIP INITIAL_SESSION because Phase 1 handles that.
+    // ── Register listener first so we never miss SIGNED_IN events ─────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        if (!mountedRef.current) return;
-
-        // Skip the initial event — Phase 1 already handled session restoration
+        // Only handle post-init events here. INITIAL_SESSION is handled below.
         if (event === 'INITIAL_SESSION') return;
 
-        console.log(`[Auth] ${event}`, newSession ? `user=${newSession.user.id}` : 'no session');
+        if (!mountedRef.current) return;
 
-        setSession(newSession);
+        console.log(`[Auth] Event: ${event} | user: ${newSession?.user?.id ?? 'none'}`);
+
+        setSession(newSession ?? null);
 
         if (newSession) {
-          if (event === 'SIGNED_IN') {
-            // Write device token for single-device enforcement
-            try {
-              const token = crypto.randomUUID();
-              localStorage.setItem('device_token', token);
-              await supabase
-                .from('profiles')
-                .update({ current_session_token: token })
-                .eq('id', newSession.user.id);
-            } catch (e) {
-              console.warn('[Auth] Device token write failed:', e);
-            }
-          }
-          await fetchUserProfile(newSession);
+          await fetchProfile(newSession);
         } else {
           setUserProfile(null);
-          setLoading(false);
         }
       }
     );
 
-    // Start Phase 1 after registering the listener (avoids missing events)
-    initialize();
+    // ── Startup sequence ───────────────────────────────────────────────────────
+    // Runs once per mount. StrictMode will run this twice in dev — that is fine
+    // because the second run simply re-validates the same session.
+    (async () => {
+      try {
+        const fence = new Promise((_, rej) =>
+          setTimeout(() => rej(new Error('getSession-timeout')), 8000)
+        );
+
+        const { data: { session: initial }, error } = await Promise.race([
+          supabase.auth.getSession(),
+          fence,
+        ]);
+
+        if (error) throw error;
+
+        console.log('[Auth] getSession done. user:', initial?.user?.id ?? 'none');
+
+        if (!mountedRef.current) return;
+
+        setSession(initial ?? null);
+
+        if (initial) {
+          await fetchProfile(initial);
+        } else {
+          setUserProfile(null);
+        }
+      } catch (err) {
+        console.error('[Auth] Startup error:', err.message);
+        if (mountedRef.current) {
+          setSession(null);
+          setUserProfile(null);
+        }
+      } finally {
+        // ⚠️  CRITICAL: setInitialized MUST fire even if mountedRef is false.
+        // If we guard this with mountedRef, StrictMode's first unmount will
+        // prevent initialized from ever becoming true.
+        setInitialized(true);
+      }
+    })();
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(hardTimeoutId);
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, [fetchProfile]);
 
-  // ─── Single Device Enforcement Channel ───────────────────────────────────
-  useEffect(() => {
-    const userId = session?.user?.id;
-    if (!userId) return;
+  // ─── Logout ───────────────────────────────────────────────────────────────
+  const handleLogout = useCallback(async () => {
+    try { await supabase.removeAllChannels(); } catch (_) {}
 
-    // Always clean up old channel before creating a new one
-    if (deviceChannelRef.current) {
-      supabase.removeChannel(deviceChannelRef.current).catch(() => {});
-      deviceChannelRef.current = null;
+    try {
+      // scope:'local' clears only this browser's token — does not invalidate other sessions
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (e) {
+      console.warn('[Auth] signOut error (non-fatal):', e.message);
     }
 
-    const ch = supabase
-      .channel(`device_guard_${userId}`) // Stable name — no Date.now() — prevents channel accumulation
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
-        (payload) => {
-          const dbToken    = payload.new?.current_session_token;
-          const localToken = localStorage.getItem('device_token');
-          if (dbToken && localToken && dbToken !== localToken) {
-            toast.error('Signed in on another device — logging you out.');
-            handleLogout();
-          }
-        }
-      )
-      .subscribe();
+    window.location.replace('/login');
+  }, []);
 
-    deviceChannelRef.current = ch;
-
-    return () => {
-      if (deviceChannelRef.current) {
-        supabase.removeChannel(deviceChannelRef.current).catch(() => {});
-        deviceChannelRef.current = null;
-      }
-    };
-  }, [session?.user?.id, handleLogout]);
-
-  // ─── Context value ────────────────────────────────────────────────────────
+  // ─── Context ───────────────────────────────────────────────────────────────
   const value = {
-    session:         session ?? null,
+    session,
     userProfile,
     userRole,
     userStatus,
-    loading,
+    loading: !initialized,
+    initialized,
     isAdmin,
     isStudent,
     isApprovedAlumni,
     isPendingAlumni,
     handleLogout,
-    refetchProfile: () => session && fetchUserProfile(session),
+    refetchProfile: () => session && fetchProfile(session),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -309,8 +298,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (ctx === null) {
-    throw new Error('[useAuth] Must be used inside <AuthProvider>.');
-  }
+  if (!ctx) throw new Error('[useAuth] Must be used inside <AuthProvider>.');
   return ctx;
 }

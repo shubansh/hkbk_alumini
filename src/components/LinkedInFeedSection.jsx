@@ -41,47 +41,16 @@ function FallbackCard({ post }) {
   );
 }
 
-// ─── Embed card (real LinkedIn iframe) ────────────────────────────────────────
 function EmbedCard({ post, isFirst }) {
-  const wrapperRef = useRef(null);
-  const [visible,  setVisible]  = useState(false);
-  const [loaded,   setLoaded]   = useState(false);
-  const [failed,   setFailed]   = useState(false);
-  const [scale,    setScale]    = useState(1);
-
-  // IntersectionObserver — lazy load iframe when card enters viewport
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.1 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  // Scale iframe to fit container width on smaller screens
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    const measure = () => {
-      const containerW = el.offsetWidth;
-      setScale(containerW < 504 ? containerW / 504 : 1);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   if (failed) return <FallbackCard post={post} />;
 
   const IFRAME_H = 570;
-  const scaledH  = Math.round(IFRAME_H * scale);
 
   return (
-    <div className="flex-shrink-0 w-[min(520px,85vw)] rounded-[1.75rem] overflow-hidden shadow-xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-white/10 flex flex-col">
+    <div className="flex-shrink-0 w-[350px] sm:w-[504px] rounded-[1.75rem] overflow-hidden shadow-xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-white/10 flex flex-col">
       {/* Featured badge */}
       {isFirst && (
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-slate-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
@@ -93,47 +62,28 @@ function EmbedCard({ post, isFirst }) {
         </div>
       )}
 
-      {/* iframe container — scales on mobile */}
-      <div ref={wrapperRef} className="relative flex-1 overflow-hidden bg-gray-50 dark:bg-slate-800" style={{ height: scaledH + (isFirst ? 48 : 0) }}>
-        {!loaded && visible && (
+      {/* iframe container */}
+      <div className="relative flex-1 bg-gray-50 dark:bg-slate-800 flex justify-center overflow-hidden" style={{ height: IFRAME_H }}>
+        {!loaded && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-50 dark:bg-slate-800 z-10">
             <div className="w-8 h-8 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
             <p className="text-xs text-gray-400">Loading LinkedIn post…</p>
           </div>
         )}
 
-        {visible && (
-          <div style={{
-            width: 504,
-            height: IFRAME_H,
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-          }}>
-            <iframe
-              src={post.embed_url}
-              width={504}
-              height={IFRAME_H}
-              frameBorder="0"
-              allowFullScreen
-              loading="lazy"
-              title={`LinkedIn post by HKBK`}
-              onLoad={() => setLoaded(true)}
-              onError={() => setFailed(true)}
-              style={{ border: 'none', display: 'block' }}
-            />
-          </div>
-        )}
-
-        {/* Placeholder before visible */}
-        {!visible && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700">
-            <LinkedInSVG className="w-10 h-10 text-blue-400 dark:text-blue-500" />
-            <p className="text-xs text-gray-400 font-medium">LinkedIn post</p>
-          </div>
-        )}
+        <iframe
+          src={post.embed_url}
+          width={504}
+          height={IFRAME_H}
+          frameBorder="0"
+          allowFullScreen
+          loading="lazy"
+          title={`LinkedIn post by HKBK`}
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          style={{ border: 'none', display: 'block', maxWidth: 'none' }}
+          className="origin-top scale-[0.69] sm:scale-100"
+        />
       </div>
 
       {/* View on LinkedIn footer link */}

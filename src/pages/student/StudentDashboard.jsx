@@ -6,8 +6,7 @@ import { useJobs } from '../../hooks/useJobs';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function StudentDashboard() {
-  const { session } = useAuth();
-  const [profile, setProfile] = useState(null);
+  const { session, userProfile: profile } = useAuth();
   const [stats, setStats] = useState({ jobs: 0, events: 0, connections: 0 });
   const [recentEvents, setRecentEvents] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -18,29 +17,19 @@ export default function StudentDashboard() {
   const { jobs: recentJobs } = useJobs({ status: 'approved', limit: 3 });
 
   useEffect(() => {
-    async function fetchProfileAndStats() {
+    let isMounted = true;
+    
+    // Safety fallback: if stats don't load in 5s, unblock UI
+    const timeoutId = setTimeout(() => {
+      if (isMounted && loading) setLoading(false);
+    }, 5000);
+
+    async function fetchStats() {
+      if (!session) {
+        if (isMounted) setLoading(false);
+        return;
+      }
       try {
-        if (session) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-            
-          if (error) {
-            console.error("Profile fetch error:", error);
-          }
-          
-          if (data) {
-            setProfile(data);
-          } else {
-            // Fallback if profile not found yet
-            setProfile({ 
-              full_name: session.user.user_metadata?.full_name || 'User',
-              role: session.user.user_metadata?.role || 'student',
-              course_name: session.user.user_metadata?.course_name
-            });
-          }
 
           // Fetch stats safely
           const { count: eventsCount, error: eventsError } = await supabase.from('events').select('*', { count: 'exact', head: true }).gte('date', new Date().toISOString());
@@ -51,6 +40,7 @@ export default function StudentDashboard() {
 
           const { count: mentorCount } = await supabase.from('mentorship_requests').select('*', { count: 'exact', head: true }).eq('student_id', session.user.id);
           
+          if (!isMounted) return;
           setStats({
             jobs: jobsCount || 0,
             events: eventsCount || 0,
@@ -66,17 +56,22 @@ export default function StudentDashboard() {
             .limit(3);
 
           if (recentEventsError) console.error("Events error:", recentEventsError);
-          if (eventsData) setRecentEvents(eventsData);
-        }
+          if (eventsData && isMounted) setRecentEvents(eventsData);
       } catch (err) {
         console.error("Critical dashboard error:", err);
-        setError("Having trouble loading some data, but you can still use the dashboard.");
+        if (isMounted) setError("Having trouble loading some data, but you can still use the dashboard.");
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
-    fetchProfileAndStats();
-  }, []);
+    
+    fetchStats();
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [session]);
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">

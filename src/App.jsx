@@ -8,13 +8,13 @@ import DashboardLayout from './layouts/DashboardLayout';
 import PublicLayout    from './layouts/PublicLayout';
 
 // Public pages
-import Home           from './pages/Home';
-import Login          from './pages/Login';
-import Signup         from './pages/Signup';
+import Home            from './pages/Home';
+import Login           from './pages/Login';
+import Signup          from './pages/Signup';
 import AlumniDirectory from './pages/AlumniDirectory';
-import JobsPage       from './pages/JobsPage';
-import EventsPage     from './pages/EventsPage';
-import ContactPage    from './pages/ContactPage';
+import JobsPage        from './pages/JobsPage';
+import EventsPage      from './pages/EventsPage';
+import ContactPage     from './pages/ContactPage';
 
 // Dashboard pages
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -24,24 +24,44 @@ import MessagesPage     from './pages/MessagesPage';
 import ProfileSettings  from './pages/ProfileSettings';
 
 // Admin pages
-import AdminDashboard     from './pages/admin/AdminDashboard';
-import AdminUsers         from './pages/admin/AdminUsers';
-import AdminAlumniApproval from './pages/admin/AdminAlumniApproval';
-import AdminEvents        from './pages/admin/AdminEvents';
-import AdminGallery       from './pages/admin/AdminGallery';
-import AdminSettings      from './pages/admin/AdminSettings';
-import AdminPosts         from './pages/admin/AdminPosts';
-import AdminPeople        from './pages/admin/AdminPeople';
-import AdminFaculty       from './pages/admin/AdminFaculty';
-import AdminMessages      from './pages/admin/AdminMessages';
-import AdminContactMessages from './pages/admin/AdminContactMessages';
-import AdminSocialFeed  from './pages/admin/AdminSocialFeed';
+import AdminDashboard        from './pages/admin/AdminDashboard';
+import AdminUsers            from './pages/admin/AdminUsers';
+import AdminAlumniApproval   from './pages/admin/AdminAlumniApproval';
+import AdminEvents           from './pages/admin/AdminEvents';
+import AdminGallery          from './pages/admin/AdminGallery';
+import AdminSettings         from './pages/admin/AdminSettings';
+import AdminPosts            from './pages/admin/AdminPosts';
+import AdminPeople           from './pages/admin/AdminPeople';
+import AdminFaculty          from './pages/admin/AdminFaculty';
+import AdminMessages         from './pages/admin/AdminMessages';
+import AdminContactMessages  from './pages/admin/AdminContactMessages';
+import AdminSocialFeed       from './pages/admin/AdminSocialFeed';
 
-// ─── Shared UI Pieces ──────────────────────────────────────────────────────
-
-// Return null to avoid jarring flashes on hard refreshes or rapid navigations.
-// The background will fall back to the global body styling.
-const FullScreenLoader = () => null;
+// ─── Shared UI ────────────────────────────────────────────────────────────────
+// Render a subtle spinner (not null) so the user knows something is happening.
+const FullScreenLoader = () => (
+  <div
+    style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
+    }}
+  >
+    <div
+      style={{
+        width: 48,
+        height: 48,
+        border: '4px solid rgba(99,102,241,0.3)',
+        borderTop: '4px solid #6366f1',
+        borderRadius: '50%',
+        animation: 'spin 0.9s linear infinite',
+      }}
+    />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 const PendingApprovalPage = ({ onLogout }) => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-4">
@@ -71,13 +91,11 @@ const PendingApprovalPage = ({ onLogout }) => (
 
 const AccountErrorPage = ({ onLogout, onRetry }) => {
   const [retrying, setRetrying] = useState(false);
-  
   const handleRetry = async () => {
     setRetrying(true);
-    await onRetry();
+    await onRetry?.();
     setRetrying(false);
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900 p-4">
       <div className="max-w-sm w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
@@ -114,82 +132,84 @@ const AccountErrorPage = ({ onLogout, onRetry }) => {
   );
 };
 
+// ─── Route Guards (defined OUTSIDE App component to prevent re-mounting) ──────
+
+/**
+ * Blocks ALL dashboard sub-routes until auth is fully initialized.
+ * Shows a spinner while loading, redirects to /login if no session,
+ * shows pending screen for unapproved alumni.
+ */
+function DashboardGuard() {
+  const { loading, session, userRole, isPendingAlumni, isAdmin, isApprovedAlumni, isStudent, handleLogout, refetchProfile } = useAuth();
+
+  console.log('[DashboardGuard]', { loading, session: !!session, userRole });
+
+  if (loading) return <FullScreenLoader />;
+  if (!session) return <Navigate to="/login" replace />;
+  if (isPendingAlumni) return <PendingApprovalPage onLogout={handleLogout} />;
+
+  // Session exists but profile/role didn't resolve
+  if (!userRole) return <AccountErrorPage onLogout={handleLogout} onRetry={refetchProfile} />;
+
+  return <Outlet />;
+}
+
+/** Admin-only sub-route guard */
+function AdminGuard() {
+  const { loading, session, isAdmin, handleLogout } = useAuth();
+  if (loading)  return <FullScreenLoader />;
+  if (!session) return <Navigate to="/login" replace />;
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <Outlet />;
+}
+
+/** Keeps logged-in users off the public pages */
+function PublicGuard({ children }) {
+  const { loading, session, isAdmin, isApprovedAlumni, isStudent, isPendingAlumni, handleLogout } = useAuth();
+  if (loading) return <FullScreenLoader />;
+  if (session) {
+    if (isAdmin)          return <Navigate to="/dashboard/admin"   replace />;
+    if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
+    if (isApprovedAlumni) return <Navigate to="/dashboard/alumni"  replace />;
+    if (isStudent)        return <Navigate to="/dashboard/student" replace />;
+  }
+  return children;
+}
+
+/** Smart home — redirects authenticated users to their dashboard */
+function HomeRoute() {
+  const { loading, session, isAdmin, isApprovedAlumni, isStudent, isPendingAlumni, handleLogout } = useAuth();
+  if (loading) return <FullScreenLoader />;
+  if (session) {
+    if (isAdmin)          return <Navigate to="/dashboard/admin"   replace />;
+    if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
+    if (isApprovedAlumni) return <Navigate to="/dashboard/alumni"  replace />;
+    if (isStudent)        return <Navigate to="/dashboard/student" replace />;
+  }
+  return <Home />;
+}
+
+/** /dashboard index — redirect to role-specific sub-path */
+function DashboardIndex() {
+  const { loading, userRole, isAdmin, isApprovedAlumni, isStudent, isPendingAlumni, handleLogout, refetchProfile } = useAuth();
+  if (loading) return <FullScreenLoader />;
+  console.log('[DashboardIndex] role:', userRole);
+  if (isAdmin)          return <Navigate to="/dashboard/admin"   replace />;
+  if (isApprovedAlumni) return <Navigate to="/dashboard/alumni"  replace />;
+  if (isStudent)        return <Navigate to="/dashboard/student" replace />;
+  if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
+  return <AccountErrorPage onLogout={handleLogout} onRetry={refetchProfile} />;
+}
+
+// ─── Layout wrapper that reads role from context ───────────────────────────────
+function DashboardShell() {
+  const { userRole } = useAuth();
+  const basePath = userRole === 'admin' ? '/dashboard/admin' : '/dashboard';
+  return <DashboardLayout role={userRole} basePath={basePath} />;
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const {
-    session, userRole, loading,
-    isAdmin, isStudent, isApprovedAlumni, isPendingAlumni,
-    handleLogout, refetchProfile,
-  } = useAuth();
-
-  // ─── Route Guards ──────────────────────────────────────────────────────
-  /** Protects dashboard from missing roles */
-  const DashboardGuard = () => {
-    if (loading) return <FullScreenLoader />;
-    if (!session) return <Navigate to="/login" replace />;
-    
-    // Only show recovery screen if loading is strictly finished, 
-    // session exists, and we completely exhausted retries.
-    if (!userRole && !loading) {
-      return <AccountErrorPage onLogout={handleLogout} onRetry={refetchProfile} />;
-    }
-    
-    return <Outlet />;
-  };
-
-  /** Redirects logged-out users to /login */
-  const ProtectedRoute = ({ children }) => {
-    if (loading)        return <FullScreenLoader />;
-    if (!session)       return <Navigate to="/login" replace />;
-    if (isPendingAlumni) return <PendingApprovalPage onLogout={handleLogout} />;
-    return children;
-  };
-
-  /** Admin-only routes */
-  const AdminRoute = ({ children }) => {
-    if (loading)           return <FullScreenLoader />;
-    if (!session)          return <Navigate to="/login" replace />;
-    if (!isAdmin)          return <Navigate to="/dashboard" replace />;
-    return children;
-  };
-
-  /** Redirects logged-in users away from public-only pages */
-  const PublicRoute = ({ children }) => {
-    if (loading) return <FullScreenLoader />;
-    if (session) {
-      if (isAdmin)          return <Navigate to="/dashboard/admin" replace />;
-      if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
-      if (isApprovedAlumni) return <Navigate to="/dashboard/alumni" replace />;
-      if (isStudent)        return <Navigate to="/dashboard/student" replace />;
-    }
-    return children;
-  };
-
-  /** Smart home page — shows landing for guests, redirects for logged-in users */
-  const HomeRoute = () => {
-    if (loading) return <FullScreenLoader />;
-    if (session) {
-      if (isAdmin)          return <Navigate to="/dashboard/admin" replace />;
-      if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
-      if (isApprovedAlumni) return <Navigate to="/dashboard/alumni" replace />;
-      if (isStudent)        return <Navigate to="/dashboard/student" replace />;
-    }
-    return <Home />;
-  };
-
-  /** /dashboard index — redirect to the correct role-specific sub-path */
-  const DashboardIndex = () => {
-    if (loading) return <FullScreenLoader />;
-    console.log(`[Route] DashboardIndex role:${userRole}`);
-
-    if (isAdmin)          return <Navigate to="/dashboard/admin"    replace />;
-    if (isApprovedAlumni) return <Navigate to="/dashboard/alumni"   replace />;
-    if (isStudent)        return <Navigate to="/dashboard/student"  replace />;
-    if (isPendingAlumni)  return <PendingApprovalPage onLogout={handleLogout} />;
-
-    return <AccountErrorPage onLogout={handleLogout} onRetry={refetchProfile} />;
-  };
-
   return (
     <ErrorBoundary>
       <Router>
@@ -197,51 +217,48 @@ export default function App() {
 
           {/* ── Public routes ────────────────────────────────────── */}
           <Route element={<PublicLayout />}>
-            <Route path="/"          element={<HomeRoute />} />
-            <Route path="/login"     element={<PublicRoute><Login /></PublicRoute>} />
-            <Route path="/signup"    element={<PublicRoute><Signup /></PublicRoute>} />
-            <Route path="/directory" element={<AlumniDirectory />} />
-            <Route path="/jobs"      element={<JobsPage />} />
-            <Route path="/events"    element={<EventsPage />} />
+            <Route path="/"           element={<HomeRoute />} />
+            <Route path="/login"      element={<PublicGuard><Login /></PublicGuard>} />
+            <Route path="/signup"     element={<PublicGuard><Signup /></PublicGuard>} />
+            <Route path="/directory"  element={<AlumniDirectory />} />
+            <Route path="/jobs"       element={<JobsPage />} />
+            <Route path="/events"     element={<EventsPage />} />
             <Route path="/mentorship" element={<MentorshipPage />} />
             <Route path="/contact"    element={<ContactPage />} />
           </Route>
 
-          {/* ── Legacy Admin Redirect ───────────────────────────────── */}
+          {/* ── Legacy admin redirect ─────────────────────────────── */}
           <Route path="/admin" element={<Navigate to="/dashboard/admin" replace />} />
 
-          {/* ── User Dashboard routes ─────────────────────────────── */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <DashboardLayout role={userRole} basePath={userRole === 'admin' ? '/dashboard/admin' : '/dashboard'} />
-            </ProtectedRoute>
-          }>
-            <Route index           element={<DashboardIndex />} />
-            <Route path="student"  element={<StudentDashboard />} />
-            <Route path="alumni"   element={<AlumniDashboard />} />
-            <Route path="mentorship" element={<MentorshipPage />} />
-            <Route path="messages"   element={<MessagesPage />} />
-            <Route path="settings"   element={<ProfileSettings />} />
-            
-            {/* ── Admin Sub-routes ───────────────────────────────── */}
-            <Route path="admin" element={
-              <AdminRoute>
-                <Outlet />
-              </AdminRoute>
-            }>
-              <Route index element={<AdminDashboard />} />
-              <Route path="users"           element={<AdminUsers />} />
-              <Route path="people"          element={<AdminPeople />} />
-              <Route path="faculty"         element={<AdminFaculty />} />
-              <Route path="alumni-approval" element={<AdminAlumniApproval />} />
-              <Route path="events"          element={<AdminEvents />} />
-              <Route path="gallery"         element={<AdminGallery />} />
-              <Route path="settings"        element={<AdminSettings />} />
-              <Route path="posts"           element={<AdminPosts />} />
-              <Route path="mentorship"      element={<MentorshipPage />} />
-              <Route path="messages"        element={<AdminMessages />} />
-              <Route path="contact-messages" element={<AdminContactMessages />} />
-              <Route path="social-feed"     element={<AdminSocialFeed />} />
+          {/* ── Protected dashboard ───────────────────────────────── */}
+          <Route element={<DashboardGuard />}>
+            <Route element={<DashboardShell />}>
+
+              {/* Common user routes */}
+              <Route path="/dashboard"            element={<DashboardIndex />} />
+              <Route path="/dashboard/student"    element={<StudentDashboard />} />
+              <Route path="/dashboard/alumni"     element={<AlumniDashboard />} />
+              <Route path="/dashboard/mentorship" element={<MentorshipPage />} />
+              <Route path="/dashboard/messages"   element={<MessagesPage />} />
+              <Route path="/dashboard/settings"   element={<ProfileSettings />} />
+
+              {/* Admin-only sub-routes */}
+              <Route element={<AdminGuard />}>
+                <Route path="/dashboard/admin"                element={<AdminDashboard />} />
+                <Route path="/dashboard/admin/users"          element={<AdminUsers />} />
+                <Route path="/dashboard/admin/people"         element={<AdminPeople />} />
+                <Route path="/dashboard/admin/faculty"        element={<AdminFaculty />} />
+                <Route path="/dashboard/admin/alumni-approval" element={<AdminAlumniApproval />} />
+                <Route path="/dashboard/admin/events"         element={<AdminEvents />} />
+                <Route path="/dashboard/admin/gallery"        element={<AdminGallery />} />
+                <Route path="/dashboard/admin/settings"       element={<AdminSettings />} />
+                <Route path="/dashboard/admin/posts"          element={<AdminPosts />} />
+                <Route path="/dashboard/admin/mentorship"     element={<MentorshipPage />} />
+                <Route path="/dashboard/admin/messages"       element={<AdminMessages />} />
+                <Route path="/dashboard/admin/contact-messages" element={<AdminContactMessages />} />
+                <Route path="/dashboard/admin/social-feed"   element={<AdminSocialFeed />} />
+              </Route>
+
             </Route>
           </Route>
 

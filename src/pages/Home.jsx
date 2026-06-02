@@ -100,8 +100,6 @@ const StatCard = ({ icon: Icon, value, label, loading }) => (
   </motion.div>
 );
 
-import SocialFeed from '../components/social/SocialFeed';
-
 // Additional imports here if any, then Home component
 export default function Home() {
   const { alumni = [], loading: alumniLoading } = useFeaturedAlumni(8);
@@ -294,10 +292,7 @@ export default function Home() {
       {/* ─── Affiliations Section ───────────────────────────────────────────── */}
       <Affiliations />
 
-      {/* ─── Social Media Feed ──────────────────────────────────────────────── */}
-      <SocialFeed />
-
-      {/* ─── About HKBK Section (New) ───────────────────────────────────────── */}
+      {/* ─── Social Media Feed Removed (Using LinkedIn Feed Below) ─── */}      {/* ─── About HKBK Section (New) ───────────────────────────────────────── */}
       <section className="py-32 relative overflow-hidden bg-white dark:bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">

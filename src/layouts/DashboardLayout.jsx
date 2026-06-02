@@ -27,33 +27,32 @@ import { useAuth } from '../contexts/AuthContext';
 // ─── Role-based nav configuration ────────────────────────────────────────────
 const NAV_CONFIG = {
   student: [
-    { name: 'Dashboard',        path: '',              icon: LayoutDashboard },
-    { name: 'Jobs & Internships', path: '/jobs',         icon: Briefcase,       external: true },
-    { name: 'Find a Mentor',    path: '/mentorship',   icon: HeartHandshake },
-    { name: 'Messages',         path: '/messages',     icon: MessageSquare },
-    { name: 'Alumni Directory', path: '/directory',    icon: Search,          external: true },
-    { name: 'Events',           path: '/events',       icon: Calendar,        external: true },
+    { name: 'Dashboard',        path: '/dashboard',             icon: LayoutDashboard },
+    { name: 'Jobs & Internships', path: '/jobs',                icon: Briefcase       },
+    { name: 'Find a Mentor',    path: '/dashboard/mentorship',  icon: HeartHandshake  },
+    { name: 'Messages',         path: '/dashboard/messages',    icon: MessageSquare   },
+    { name: 'Alumni Directory', path: '/directory',             icon: Search          },
+    { name: 'Events',           path: '/events',                icon: Calendar        },
   ],
   alumni: [
-    { name: 'Dashboard',          path: '',            icon: LayoutDashboard },
-    { name: 'Jobs & Internships', path: '/jobs',       icon: Briefcase,       external: true },
-    { name: 'Mentorship',         path: '/mentorship', icon: HeartHandshake },
-    { name: 'Messages',           path: '/messages',   icon: MessageSquare },
-    { name: 'Events',             path: '/events',     icon: Calendar,        external: true },
+    { name: 'Dashboard',          path: '/dashboard',           icon: LayoutDashboard },
+    { name: 'Jobs & Internships', path: '/jobs',                icon: Briefcase       },
+    { name: 'Mentorship',         path: '/dashboard/mentorship',icon: HeartHandshake  },
+    { name: 'Messages',           path: '/dashboard/messages',  icon: MessageSquare   },
+    { name: 'Events',             path: '/events',              icon: Calendar        },
   ],
   admin: [
-    { name: 'Dashboard',          path: '',                    icon: LayoutDashboard },
-    { name: 'Alumni Approval',    path: '/alumni-approval',    icon: ShieldCheck },
-    { name: 'User Management',    path: '/users',              icon: Users },
-
-    { name: 'Faculty Management', path: '/faculty',            icon: GraduationCap },
-    { name: 'Faculty (People)',   path: '/people',             icon: Users },
-    { name: 'Gallery',            path: '/gallery',            icon: Image },
-    { name: 'Events',             path: '/events',             icon: Calendar },
-    { name: 'Inbound Messages',   path: '/messages',           icon: MessageSquare },
-    { name: 'Support Messages',   path: '/contact-messages',   icon: Mail },
-    { name: 'Social Feed',        path: '/social-feed',        icon: LinkedinIcon },
-    { name: 'Settings',           path: '/settings',           icon: Settings },
+    { name: 'Dashboard',          path: '/dashboard/admin',                     icon: LayoutDashboard },
+    { name: 'Alumni Approval',    path: '/dashboard/admin/alumni-approval',     icon: ShieldCheck     },
+    { name: 'User Management',    path: '/dashboard/admin/users',              icon: Users           },
+    { name: 'Faculty Management', path: '/dashboard/admin/faculty',            icon: GraduationCap   },
+    { name: 'Faculty (People)',   path: '/dashboard/admin/people',             icon: Users           },
+    { name: 'Gallery',            path: '/dashboard/admin/gallery',            icon: Image           },
+    { name: 'Events',             path: '/dashboard/admin/events',             icon: Calendar        },
+    { name: 'Inbound Messages',   path: '/dashboard/admin/messages',           icon: MessageSquare   },
+    { name: 'Support Messages',   path: '/dashboard/admin/contact-messages',   icon: Mail            },
+    { name: 'Social Feed',        path: '/dashboard/admin/social-feed',        icon: LinkedinIcon    },
+    { name: 'Settings',           path: '/dashboard/admin/settings',           icon: Settings        },
   ],
 };
 
@@ -132,18 +131,13 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
 
   const handleLogout = async () => {
     await authLogout();
-    navigate('/login');
+    // authLogout() already does window.location.replace('/login') — no navigate needed
   };
 
 
-  // Build nav items for this role
-  const roleNav = NAV_CONFIG[role] ?? NAV_CONFIG.student;
-  const navItems = roleNav.map(item => ({
-    ...item,
-    // External links (outside dashboard) use their own path
-    // Internal links are relative to basePath
-    href: item.external ? item.path : `${basePath}${item.path}`,
-  }));
+  // Build nav items — all paths are now absolute, no joining needed
+  const roleNav  = NAV_CONFIG[role] ?? NAV_CONFIG.student;
+  const navItems = roleNav;
 
   const portalLabel = ROLE_LABELS[role] ?? 'Dashboard';
 
@@ -192,15 +186,14 @@ export default function DashboardLayout({ role, basePath = '/dashboard' }) {
             <nav className="px-4 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = item.external
-                  ? location.pathname === item.href
-                  : location.pathname === item.href || 
-                    (item.href !== basePath && location.pathname.startsWith(item.href));
+                const isActive = location.pathname === item.path ||
+                  (item.path !== '/dashboard' && item.path !== '/dashboard/admin' &&
+                    location.pathname.startsWith(item.path));
 
                 return (
                   <Link
                     key={item.name}
-                    to={item.href}
+                    to={item.path}
                     onClick={() => setSidebarOpen(false)}
                     className={`group flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 relative overflow-hidden ${
                       isActive

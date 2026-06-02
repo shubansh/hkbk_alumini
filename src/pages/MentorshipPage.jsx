@@ -49,7 +49,8 @@ export default function MentorshipPage() {
           const { data: requests, error } = await supabase
             .from('mentorship_requests')
             .select('student_id')
-            .eq('alumni_id', session.user.id);
+            .eq('alumni_id', session.user.id)
+            .eq('status', 'pending');
             
           if (!error && requests) {
             const senderIds = [...new Set(requests.map(r => r.student_id))];
@@ -93,6 +94,21 @@ export default function MentorshipPage() {
       navigate('/dashboard/messages', { state: { contactId: mentorId } });
     } catch (error) {
       toast.error('Failed to send request. You may have already requested this mentor.');
+    }
+  };
+
+  const handleAcceptMentorship = async (studentId) => {
+    try {
+      await supabase
+        .from('mentorship_requests')
+        .update({ status: 'accepted' })
+        .eq('student_id', studentId)
+        .eq('alumni_id', session.user.id);
+        
+      toast.success('Request accepted! Redirecting to chat...', { icon: '🤝' });
+      navigate('/dashboard/messages', { state: { contactId: studentId } });
+    } catch (error) {
+      toast.error('Failed to accept request.');
     }
   };
 
@@ -181,14 +197,14 @@ export default function MentorshipPage() {
               )}
               
               <button 
-                onClick={() => role === 'student' ? handleRequestMentorship(user.id) : navigate('/dashboard/messages', { state: { contactId: user.id } })}
+                onClick={() => role === 'student' ? handleRequestMentorship(user.id) : handleAcceptMentorship(user.id)}
                 className={`mt-auto w-full font-semibold py-2.5 rounded-xl transition-all duration-300 ${
                   role === 'student' 
                     ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white'
-                    : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white'
+                    : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white'
                 }`}
               >
-                {role === 'student' ? 'Request Mentorship' : 'Message Student'}
+                {role === 'student' ? 'Request Mentorship' : 'Accept & Message'}
               </button>
             </div>
             );

@@ -6,8 +6,7 @@ import { useJobs } from '../../hooks/useJobs';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function AlumniDashboard() {
-  const { session } = useAuth();
-  const [profile, setProfile] = useState(null);
+  const { session, userProfile: profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,30 +17,19 @@ export default function AlumniDashboard() {
   const { jobs: recentJobs } = useJobs({ postedBy: profile?.id, limit: 3 });
 
   useEffect(() => {
-    async function fetchProfileAndStats() {
+    let isMounted = true;
+    
+    // Safety fallback: if stats don't load in 5s, unblock UI
+    const timeoutId = setTimeout(() => {
+      if (isMounted && loading) setLoading(false);
+    }, 5000);
+
+    async function fetchStats() {
+      if (!session) {
+        if (isMounted) setLoading(false);
+        return;
+      }
       try {
-        if (session) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-            
-          if (error) {
-            console.error("Profile fetch error:", error);
-          }
-          
-          if (data) {
-            setProfile(data);
-          } else {
-            // Fallback if profile not found yet
-            setProfile({ 
-              full_name: session.user.user_metadata?.full_name || 'Alumni',
-              role: session.user.user_metadata?.role || 'alumni',
-              course_name: session.user.user_metadata?.course_name,
-              is_approved: false // Always default to false until we can read from db
-            });
-          }
 
           let msgCount = 0;
           let jobsCount = 0;
@@ -52,10 +40,11 @@ export default function AlumniDashboard() {
             msgCount = msgC || 0;
             const { count: jobsC } = await supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('posted_by', session.user.id);
             jobsCount = jobsC || 0;
-            const { count: mentorC } = await supabase.from('mentorship_requests').select('*', { count: 'exact', head: true }).eq('alumni_id', session.user.id);
+            const { count: mentorC } = await supabase.from('mentorship_requests').select('*', { count: 'exact', head: true }).eq('alumni_id', session.user.id).eq('status', 'pending');
             mentorshipsCount = mentorC || 0;
           } catch(e) { console.error("Stats fetch error:", e); }
           
+          if (!isMounted) return;
           setStats({
             jobsPosted: jobsCount,
             messages: msgCount,
@@ -67,11 +56,12 @@ export default function AlumniDashboard() {
             .from('mentorship_requests')
             .select('student_id')
             .eq('alumni_id', session.user.id)
+            .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
           if (requestsError) console.error("Mentorship requests error:", requestsError);
 
-          if (requestData && requestData.length > 0) {
+          if (requestData && requestData.length > 0 && isMounted) {
             const senderIds = [...new Set(requestData.map(r => r.student_id))].slice(0, 3);
             if (senderIds.length > 0) {
               const { data: studentsData, error: studentsError } = await supabase
@@ -80,19 +70,24 @@ export default function AlumniDashboard() {
                 .in('id', senderIds);
                 
               if (studentsError) console.error("Students fetch error:", studentsError);
-              if (studentsData) setRecentRequests(studentsData);
+              if (studentsData && isMounted) setRecentRequests(studentsData);
             }
           }
-        }
       } catch (err) {
         console.error("Critical dashboard error:", err);
-        setError("Having trouble loading some data, but you can still use the dashboard.");
+        if (isMounted) setError("Having trouble loading some data, but you can still use the dashboard.");
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
-    fetchProfileAndStats();
-  }, []);
+    
+    fetchStats();
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [session]);
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
