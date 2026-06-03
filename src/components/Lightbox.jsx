@@ -54,11 +54,21 @@ export default function Lightbox({ images, currentIndex, onClose, onPrev, onNext
           onClick={(e) => e.stopPropagation()}
         >
           <div className="relative group w-full h-[80vh] flex items-center justify-center">
-            <img
-              src={currentImg.image_url}
-              alt={currentImg.title || 'Gallery Image'}
-              className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-            />
+            {currentImg.image_url?.match(/\.(mp4|webm|mov)$/i) ? (
+              <video
+                src={currentImg.image_url}
+                className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+                controls
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <img
+                src={currentImg.image_url}
+                alt={currentImg.title || 'Gallery Image'}
+                className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+              />
+            )}
           </div>
 
           {/* Caption */}

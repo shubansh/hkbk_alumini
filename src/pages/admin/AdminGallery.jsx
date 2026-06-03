@@ -100,8 +100,9 @@ export default function AdminGallery() {
               folder="images"
               currentUrl={uploadedUrl}
               onUpload={setUploadedUrl}
-              label="Gallery Image"
-              maxSizeMB={4}
+              label="Gallery Image or Video"
+              maxSizeMB={50}
+              acceptVideo={true}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -149,14 +150,31 @@ export default function AdminGallery() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
           {images.map(img => (
             <div key={img.id} className="group relative bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700/60 rounded-2xl overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-              <div className="w-full h-44 overflow-hidden bg-gray-100 dark:bg-slate-900">
-                <img
-                  src={img.image_url}
-                  alt={img.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  onError={e => { e.target.onerror = null; e.target.src = ''; e.target.parentElement.classList.add('bg-gray-200'); }}
-                />
+              <div className="w-full h-44 overflow-hidden bg-gray-100 dark:bg-slate-900 relative">
+                {img.image_url.match(/\.(mp4|webm|mov)$/i) ? (
+                  <>
+                    <video
+                      src={img.image_url}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      muted
+                      loop
+                      playsInline
+                      onMouseOver={(e) => e.target.play()}
+                      onMouseOut={(e) => { e.target.pause(); e.target.currentTime = 0; }}
+                    />
+                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase">
+                      Video
+                    </div>
+                  </>
+                ) : (
+                  <img
+                    src={img.image_url}
+                    alt={img.title}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={e => { e.target.onerror = null; e.target.src = ''; e.target.parentElement.classList.add('bg-gray-200'); }}
+                  />
+                )}
               </div>
               <div className="p-3 flex items-start justify-between gap-2">
                 <div className="min-w-0">

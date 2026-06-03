@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 const MAX_COMPRESSED_MB = 4; // hard limit AFTER compression
 
 // ─── Format bytes ─────────────────────────────────────────────────────────────
@@ -71,8 +72,10 @@ export default function ImageUpload({
   shape      = 'square',
   label      = 'Upload Image',
   disabled   = false,
+  acceptVideo = false,
 }) {
   const [preview,     setPreview]     = useState(currentUrl);
+  const [mediaType,   setMediaType]   = useState(currentUrl?.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image');
   const [compressing, setCompressing] = useState(false);
   const [uploading,   setUploading]   = useState(false);
   const [dragOver,    setDragOver]    = useState(false);
@@ -83,6 +86,9 @@ export default function ImageUpload({
   // BUG FIX: sync preview when parent passes a new currentUrl (e.g. edit modal re-opens)
   useEffect(() => {
     setPreview(currentUrl ?? null);
+    if (currentUrl) {
+      setMediaType(currentUrl.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image');
+    }
     setSizeInfo(null);
     setError(null);
   }, [currentUrl]);
@@ -98,38 +104,59 @@ export default function ImageUpload({
     setSizeInfo(null);
 
     // ── Type check (only format check, NOT size) ──────────────────────────
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const isVideo = file.type.startsWith('video/');
+    if (isVideo && !acceptVideo) {
+      const msg = `Videos are not allowed here.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    
+    if (!isVideo && !ALLOWED_TYPES.includes(file.type)) {
       const msg = `"${file.type}" not supported. Use JPG, PNG or WebP.`;
       setError(msg);
       toast.error(msg);
       return;
     }
+    
+    if (isVideo && !ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      const msg = `"${file.type}" not supported. Use MP4 or WebM.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    setMediaType(isVideo ? 'video' : 'image');
 
     // ── Show local preview immediately ────────────────────────────────────
     const localObjectUrl = URL.createObjectURL(file);
     setPreview(localObjectUrl);
 
     // ── Step 1: Compress (NO size rejection before this) ─────────────────
-    setCompressing(true);
-    let compressed;
-    try {
-      compressed = await compressImage(file, { maxSizeMB });  // ← pass prop
-    } catch (err) {
+    let compressed = file;
+    if (!isVideo) {
+      setCompressing(true);
+      try {
+        compressed = await compressImage(file, { maxSizeMB });  // ← pass prop
+      } catch (err) {
+        setCompressing(false);
+        setPreview(currentUrl);
+        toast.error('Compression failed: ' + err.message);
+        return;
+      }
       setCompressing(false);
-      setPreview(currentUrl);
-      toast.error('Compression failed: ' + err.message);
-      return;
     }
-    setCompressing(false);
 
     const beforeBytes = file.size;
     const afterBytes  = compressed.size;
     const savedPct    = Math.max(0, Math.round((1 - afterBytes / beforeBytes) * 100));
-    setSizeInfo({ before: fmt(beforeBytes), after: fmt(afterBytes), saved: savedPct });
+    setSizeInfo({ before: fmt(beforeBytes), after: isVideo ? fmt(afterBytes) : fmt(afterBytes), saved: isVideo ? 0 : savedPct });
 
     // ── Step 2: Post-compression size guard ───────────────────────────────
-    if (afterBytes > MAX_COMPRESSED_MB * 1024 * 1024) {
-      const msg = `Even after compression the file is ${fmt(afterBytes)}. Please use a smaller image.`;
+    // For video, we might allow larger sizes, but let's stick to MAX_COMPRESSED_MB or max 50MB if acceptVideo
+    const limitMB = isVideo ? 50 : MAX_COMPRESSED_MB;
+    if (afterBytes > limitMB * 1024 * 1024) {
+      const msg = `File is ${fmt(afterBytes)}. Maximum allowed is ${limitMB}MB.`;
       setError(msg);
       toast.error(msg);
       setPreview(currentUrl);
@@ -140,7 +167,7 @@ export default function ImageUpload({
     // ── Step 3: Upload compressed file ────────────────────────────────────
     setUploading(true);
     try {
-      const ext      = compressed.type === 'image/webp' ? 'webp' : 'jpg';
+      const ext = isVideo ? compressed.name.split('.').pop() : (compressed.type === 'image/webp' ? 'webp' : 'jpg');
       const name     = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const filePath = folder ? `${folder.replace(/\/$/, '')}/${name}` : name;
 
@@ -258,11 +285,21 @@ export default function ImageUpload({
         ].filter(Boolean).join(' ')}
       >
         {/* Preview */}
-        {preview && (
+        {preview && mediaType === 'image' && (
           <img
             src={preview}
             alt="Preview"
             className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+        {preview && mediaType === 'video' && (
+          <video
+            src={preview}
+            className="absolute inset-0 w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
           />
         )}
 
@@ -295,10 +332,10 @@ export default function ImageUpload({
                     <span className="text-blue-600 dark:text-blue-400 font-semibold">browse</span>
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-                    JPG · PNG · WebP — auto-compressed to WebP
+                    {acceptVideo ? 'JPG · PNG · WebP · MP4 (Max 50MB)' : 'JPG · PNG · WebP — auto-compressed to WebP'}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500">
-                    Any size accepted
+                    {acceptVideo ? '' : 'Any size accepted'}
                   </p>
                 </>
               )}
@@ -337,7 +374,7 @@ export default function ImageUpload({
       <input
         type="file"
         ref={fileRef}
-        accept="image/jpeg,image/png,image/webp"
+        accept={acceptVideo ? "image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" : "image/jpeg,image/png,image/webp"}
         className="hidden"
         disabled={disabled || isBusy}
         onChange={(e) => {

@@ -457,13 +457,24 @@ export default function Home() {
                 className="min-w-[280px] md:min-w-[380px] h-[460px] rounded-[2.5rem] overflow-hidden group relative cursor-pointer snap-start flex-shrink-0 shadow-2xl shadow-black/10"
                 onClick={() => setLightboxIndex(idx % (gallery?.length || 1))}
               >
-                <img
-                  src={img?.image_url}
-                  alt={img?.title || 'Campus'}
-                  loading="lazy"
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  onError={e => { e.target.style.display = 'none'; }}
-                />
+                {img?.image_url?.match(/\.(mp4|webm|mov)$/i) ? (
+                  <video
+                    src={img?.image_url}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                  />
+                ) : (
+                  <img
+                    src={img?.image_url}
+                    alt={img?.title || 'Campus'}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    onError={e => { e.target.style.display = 'none'; }}
+                  />
+                )}
                 {/* Always-visible subtle gradient */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                 {/* Category chip */}
