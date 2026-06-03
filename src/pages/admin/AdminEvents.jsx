@@ -53,10 +53,13 @@ export default function AdminEvents() {
   }, []);
 
   const handleEditEvent = (event) => {
+    const d = new Date(event.date);
+    const localDateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+
     setForm({
       title: event.title,
       description: event.description,
-      date: new Date(event.date).toISOString().slice(0, 16),
+      date: localDateStr,
       location: event.location,
       image_url: event.image_url || '',
       capacity: event.capacity || ''
@@ -79,6 +82,7 @@ export default function AdminEvents() {
 
     const payload = { 
       ...form,
+      date: new Date(form.date).toISOString(),
       organizer_id: session.user.id 
     };
 
