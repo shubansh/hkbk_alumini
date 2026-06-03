@@ -4,6 +4,7 @@ import { Menu, X, Sun, Moon, User, LayoutDashboard, LogOut, ChevronDown } from '
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationBell from './notifications/NotificationBell';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -87,7 +88,9 @@ export default function Navbar() {
               </button>
 
               {session ? (
-                <div className="relative" ref={dropdownRef}>
+                <div className="flex items-center gap-2">
+                  <NotificationBell />
+                  <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -140,6 +143,7 @@ export default function Navbar() {
                       </button>
                     </div>
                   )}
+                </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">

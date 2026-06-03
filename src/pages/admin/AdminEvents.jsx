@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Calendar, MapPin, Trash2, Image as ImageIcon, Loader2, Plus, X, Save } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Calendar, MapPin, Trash2, Image as ImageIcon, Loader2, Plus, X, Save, QrCode, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageUpload from '../../components/ImageUpload';
+import AdminEventAttendeesModal from '../../components/events/AdminEventAttendeesModal';
 
 const EMPTY_FORM = { title: '', description: '', date: '', location: '', image_url: '' };
 
@@ -13,6 +15,7 @@ export default function AdminEvents() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
+  const [selectedEventForModal, setSelectedEventForModal] = useState(null);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -125,18 +128,26 @@ export default function AdminEvents() {
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Create and manage upcoming college events.</p>
         </div>
-        <button 
-          onClick={() => {
-            setShowForm(!showForm);
-            if (!showForm) {
-              setEditingId(null);
-              setForm(EMPTY_FORM);
-            }
-          }}
-          className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-md font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
-        >
-          {showForm ? <><X className="w-4 h-4" /> Cancel</> : <><Plus className="w-4 h-4" /> Create Event</>}
-        </button>
+        <div className="flex gap-3">
+          <Link 
+            to="/dashboard/admin/scanner"
+            className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-md font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+          >
+            <QrCode className="w-4 h-4" /> QR Scanner
+          </Link>
+          <button 
+            onClick={() => {
+              setShowForm(!showForm);
+              if (!showForm) {
+                setEditingId(null);
+                setForm(EMPTY_FORM);
+              }
+            }}
+            className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-md font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+          >
+            {showForm ? <><X className="w-4 h-4" /> Cancel</> : <><Plus className="w-4 h-4" /> Create Event</>}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -245,7 +256,13 @@ export default function AdminEvents() {
                 </div>
               </div>
             </div>
-            <div className="bg-gray-50 dark:bg-slate-700/50 p-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-2">
+            <div className="bg-gray-50 dark:bg-slate-700/50 p-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-2 flex-wrap">
+              <button 
+                onClick={() => setSelectedEventForModal(event)}
+                className="text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 px-3 py-2 rounded-md flex items-center gap-1.5 transition-colors text-sm font-bold mr-auto"
+              >
+                <Users className="w-4 h-4" /> RSVPs & Stats
+              </button>
               <button 
                 onClick={() => handleEditEvent(event)}
                 className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-2 rounded-md transition-colors text-sm font-medium"
@@ -267,6 +284,13 @@ export default function AdminEvents() {
           </div>
         )}
       </div>
+
+      {selectedEventForModal && (
+        <AdminEventAttendeesModal 
+          event={selectedEventForModal} 
+          onClose={() => setSelectedEventForModal(null)} 
+        />
+      )}
     </div>
   );
 }

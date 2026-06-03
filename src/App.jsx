@@ -36,6 +36,7 @@ import AdminFaculty          from './pages/admin/AdminFaculty';
 import AdminMessages         from './pages/admin/AdminMessages';
 import AdminContactMessages  from './pages/admin/AdminContactMessages';
 import AdminSocialFeed       from './pages/admin/AdminSocialFeed';
+import AdminEventScanner     from './pages/admin/AdminEventScanner';
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 // Render a subtle spinner (not null) so the user knows something is happening.
@@ -250,6 +251,7 @@ export default function App() {
                 <Route path="/dashboard/admin/faculty"        element={<AdminFaculty />} />
                 <Route path="/dashboard/admin/alumni-approval" element={<AdminAlumniApproval />} />
                 <Route path="/dashboard/admin/events"         element={<AdminEvents />} />
+                <Route path="/dashboard/admin/scanner"        element={<AdminEventScanner />} />
                 <Route path="/dashboard/admin/gallery"        element={<AdminGallery />} />
                 <Route path="/dashboard/admin/settings"       element={<AdminSettings />} />
                 <Route path="/dashboard/admin/posts"          element={<AdminPosts />} />
