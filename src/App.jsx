@@ -14,6 +14,7 @@ import Signup          from './pages/Signup';
 import AlumniDirectory from './pages/AlumniDirectory';
 import JobsPage        from './pages/JobsPage';
 import EventsPage      from './pages/EventsPage';
+import EventDetails    from './pages/EventDetails';
 import ContactPage     from './pages/ContactPage';
 
 // Dashboard pages
@@ -22,6 +23,7 @@ import AlumniDashboard  from './pages/alumni/AlumniDashboard';
 import MentorshipPage   from './pages/MentorshipPage';
 import MessagesPage     from './pages/MessagesPage';
 import ProfileSettings  from './pages/ProfileSettings';
+import MyEvents         from './pages/MyEvents';
 
 // Admin pages
 import AdminDashboard        from './pages/admin/AdminDashboard';
@@ -31,9 +33,7 @@ import AdminEvents           from './pages/admin/AdminEvents';
 import AdminGallery          from './pages/admin/AdminGallery';
 import AdminSettings         from './pages/admin/AdminSettings';
 import AdminPosts            from './pages/admin/AdminPosts';
-import AdminPeople           from './pages/admin/AdminPeople';
 import AdminFaculty          from './pages/admin/AdminFaculty';
-import AdminMessages         from './pages/admin/AdminMessages';
 import AdminContactMessages  from './pages/admin/AdminContactMessages';
 import AdminSocialFeed       from './pages/admin/AdminSocialFeed';
 import AdminEventScanner     from './pages/admin/AdminEventScanner';
@@ -224,6 +224,7 @@ export default function App() {
             <Route path="/directory"  element={<AlumniDirectory />} />
             <Route path="/jobs"       element={<JobsPage />} />
             <Route path="/events"     element={<EventsPage />} />
+            <Route path="/events/:id" element={<EventDetails />} />
             <Route path="/mentorship" element={<MentorshipPage />} />
             <Route path="/contact"    element={<ContactPage />} />
           </Route>
@@ -239,6 +240,7 @@ export default function App() {
               <Route path="/dashboard"            element={<DashboardIndex />} />
               <Route path="/dashboard/student"    element={<StudentDashboard />} />
               <Route path="/dashboard/alumni"     element={<AlumniDashboard />} />
+              <Route path="/dashboard/events"     element={<MyEvents />} />
               <Route path="/dashboard/mentorship" element={<MentorshipPage />} />
               <Route path="/dashboard/messages"   element={<MessagesPage />} />
               <Route path="/dashboard/settings"   element={<ProfileSettings />} />
@@ -247,7 +249,6 @@ export default function App() {
               <Route element={<AdminGuard />}>
                 <Route path="/dashboard/admin"                element={<AdminDashboard />} />
                 <Route path="/dashboard/admin/users"          element={<AdminUsers />} />
-                <Route path="/dashboard/admin/people"         element={<AdminPeople />} />
                 <Route path="/dashboard/admin/faculty"        element={<AdminFaculty />} />
                 <Route path="/dashboard/admin/alumni-approval" element={<AdminAlumniApproval />} />
                 <Route path="/dashboard/admin/events"         element={<AdminEvents />} />
@@ -256,7 +257,6 @@ export default function App() {
                 <Route path="/dashboard/admin/settings"       element={<AdminSettings />} />
                 <Route path="/dashboard/admin/posts"          element={<AdminPosts />} />
                 <Route path="/dashboard/admin/mentorship"     element={<MentorshipPage />} />
-                <Route path="/dashboard/admin/messages"       element={<AdminMessages />} />
                 <Route path="/dashboard/admin/contact-messages" element={<AdminContactMessages />} />
                 <Route path="/dashboard/admin/social-feed"   element={<AdminSocialFeed />} />
               </Route>

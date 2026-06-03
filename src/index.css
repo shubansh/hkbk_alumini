@@ -2,36 +2,111 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --color-theme-bg: var(--theme-bg);
+  --color-theme-sidebar: var(--theme-sidebar);
+  --color-theme-card: var(--theme-card);
+  --color-theme-border: var(--theme-border);
+  --color-theme-primary: var(--theme-primary);
+  --color-theme-accent: var(--theme-accent);
+  --color-theme-text: var(--theme-text);
+  --color-theme-text-muted: var(--theme-text-muted);
+}
+
 @layer base {
-  body {
-    @apply bg-slate-50 text-gray-900 transition-colors duration-500 min-h-screen;
+  html, body, #root {
+    @apply h-full min-h-screen;
   }
   
-  .dark body {
-    @apply bg-[#020617] text-white;
+  #root {
+    @apply flex flex-col;
   }
 
-  [data-theme="midnight"] body {
-    @apply bg-[#060913] text-blue-50;
-    /* Deep midnight overrides */
-    --tw-bg-opacity: 1;
-    background-image: radial-gradient(circle at top right, rgba(30, 58, 138, 0.15), transparent 40%),
-                      radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.05), transparent 40%);
+  body {
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+    transition: background-color 0.5s ease, color 0.5s ease;
   }
 
-  [data-theme="glassmorphism"] body {
-    @apply bg-slate-900 text-white;
-    background-image: linear-gradient(to bottom right, rgba(15,23,42,0.9), rgba(15,23,42,0.8)), url('/images/hero/main.jpg');
+  /* Theme Definitions */
+  :root, :root[data-theme="midnight-blue"] {
+    --theme-bg: #0B1020;
+    --theme-sidebar: #0F172A;
+    --theme-card: #111C34;
+    --theme-border: #24324D;
+    --theme-primary: #3B82F6;
+    --theme-accent: #8B5CF6;
+    --theme-text: #F8FAFC;
+    --theme-text-muted: #94A3B8;
+  }
+
+  :root[data-theme="soft-light"] {
+    --theme-bg: #F5F7FB;
+    --theme-sidebar: #FFFFFF;
+    --theme-card: #FFFFFF;
+    --theme-border: #E2E8F0;
+    --theme-primary: #2563EB;
+    --theme-accent: #8B5CF6;
+    --theme-text: #0F172A;
+    --theme-text-muted: #64748B;
+  }
+
+  :root[data-theme="glassmorphism"] {
+    --theme-bg: #020617;
+    --theme-sidebar: rgba(15, 23, 42, 0.7);
+    --theme-card: rgba(255, 255, 255, 0.02);
+    --theme-border: rgba(255, 255, 255, 0.05);
+    --theme-primary: #3B82F6;
+    --theme-accent: #10B981;
+    --theme-text: #F8FAFC;
+    --theme-text-muted: #94A3B8;
+  }
+
+  :root[data-theme="aurora"] {
+    --theme-bg: #030014;
+    --theme-sidebar: rgba(10, 5, 30, 0.8);
+    --theme-card: rgba(20, 10, 50, 0.6);
+    --theme-border: rgba(139, 92, 246, 0.2);
+    --theme-primary: #8B5CF6;
+    --theme-accent: #EC4899;
+    --theme-text: #F8FAFC;
+    --theme-text-muted: #CBD5E1;
+  }
+
+  /* Specific visual overrides */
+  :root[data-theme="glassmorphism"] body {
+    background-image: linear-gradient(to bottom right, #0f172a, #020617), url('/images/hero/main.jpg');
     background-size: cover;
     background-attachment: fixed;
     background-position: center;
   }
+
+  :root[data-theme="aurora"] body {
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.15), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.15), transparent 25%);
+    background-color: var(--theme-bg);
+  }
+
+  /* Global Premium Form Styles */
+  input, textarea, select {
+    background-color: color-mix(in srgb, var(--theme-text) 3%, transparent);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text);
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+    outline: none;
+  }
   
-  /* Glassmorphism utility classes */
-  [data-theme="glassmorphism"] .bg-white\/80,
-  [data-theme="glassmorphism"] .bg-slate-900\/60,
-  [data-theme="glassmorphism"] .dark\:bg-slate-900\/60 {
-    @apply bg-white/5 backdrop-blur-2xl border-white/10 shadow-2xl;
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 15%, transparent);
+    background-color: color-mix(in srgb, var(--theme-text) 5%, transparent);
+  }
+  
+  input::placeholder, textarea::placeholder {
+    color: var(--theme-text-muted);
+    opacity: 0.7;
   }
 }
 

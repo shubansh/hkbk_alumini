@@ -37,35 +37,41 @@ export default function AdminEventScanner() {
 
   const processQR = async (token) => {
     try {
-      // Find RSVP by token
-      const { data: rsvp, error: fetchError } = await supabase
-        .from('event_rsvps')
+      // Find Registration by QR token
+      const { data: reg, error: fetchError } = await supabase
+        .from('event_registrations')
         .select('*, profiles(full_name, email, role, avatar_url), events(title)')
-        .eq('qr_code_token', token)
+        .eq('qr_code', token)
         .maybeSingle();
 
-      if (fetchError || !rsvp) {
-        toast.error('Invalid QR Code. No RSVP found.');
+      if (fetchError || !reg) {
+        toast.error('Invalid QR Code. No registration found.');
         setAttendee({ status: 'invalid' });
         return;
       }
 
-      if (rsvp.attended) {
+      if (reg.registration_status === 'cancelled') {
+        toast.error('Ticket is cancelled.');
+        setAttendee({ status: 'invalid' });
+        return;
+      }
+
+      if (reg.attendance_status === 'attended') {
         toast('Attendee already checked in!', { icon: '⚠️' });
-        setAttendee({ ...rsvp, status: 'already_checked_in' });
+        setAttendee({ ...reg, status: 'already_checked_in' });
         return;
       }
 
       // Mark as attended
       const { error: updateError } = await supabase
-        .from('event_rsvps')
-        .update({ attended: true })
-        .eq('id', rsvp.id);
+        .from('event_registrations')
+        .update({ attendance_status: 'attended', scanned_at: new Date().toISOString() })
+        .eq('id', reg.id);
 
       if (updateError) throw updateError;
 
       toast.success('Successfully checked in!');
-      setAttendee({ ...rsvp, status: 'success' });
+      setAttendee({ ...reg, status: 'success' });
 
     } catch (err) {
       console.error(err);

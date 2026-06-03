@@ -2,46 +2,43 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const ThemeContext = createContext();
 
+const THEMES = ['midnight-blue', 'soft-light', 'glassmorphism', 'aurora'];
+
 export function ThemeProvider({ children }) {
-  // Support: 'light', 'dark', 'midnight'
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('hkbk-theme') || 'dark';
+    return localStorage.getItem('hkbk-theme') || 'midnight-blue';
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
-
-    // Remove all theme classes and data attributes first
+    // Remove all old classes and data-theme
     root.classList.remove('light', 'dark');
-    root.removeAttribute('data-theme');
-
-    if (theme === 'light') {
+    
+    // Validate theme, fallback to midnight-blue
+    const validTheme = THEMES.includes(theme) ? theme : 'midnight-blue';
+    root.setAttribute('data-theme', validTheme);
+    
+    // For legacy tailwind support during transition, if it's soft-light it's light mode, else dark
+    if (validTheme === 'soft-light') {
       root.classList.add('light');
-    } else if (theme === 'dark') {
-      root.classList.add('dark');
-    } else if (theme === 'midnight') {
-      root.classList.add('dark');
-      root.setAttribute('data-theme', 'midnight');
     } else {
-      // fallback
       root.classList.add('dark');
     }
 
-    localStorage.setItem('hkbk-theme', theme);
+    localStorage.setItem('hkbk-theme', validTheme);
   }, [theme]);
 
-  /** Simple two-way toggle: light ↔ dark */
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
-
-  /** Cycle through all themes: light → dark → midnight → light */
-  const cycleTheme = () =>
+  const cycleTheme = () => {
     setTheme(prev => {
-      if (prev === 'light') return 'dark';
-      if (prev === 'dark') return 'midnight';
-      return 'light';
+      const currentIndex = THEMES.indexOf(prev);
+      const nextIndex = (currentIndex + 1) % THEMES.length;
+      return THEMES[nextIndex];
     });
+  };
 
-  const value = { theme, setTheme, toggleTheme, cycleTheme };
+  const toggleTheme = cycleTheme;
+
+  const value = { theme, setTheme, toggleTheme, cycleTheme, availableThemes: THEMES };
 
   return (
     <ThemeContext.Provider value={value}>

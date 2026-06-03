@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Trash2, Image as ImageIcon, Loader2, Plus, X, Save, QrCode, Users } from 'lucide-react';
+import { Calendar, MapPin, Trash2, Image as ImageIcon, Loader2, Plus, X, Save, QrCode, Users, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageUpload from '../../components/ImageUpload';
 import AdminEventAttendeesModal from '../../components/events/AdminEventAttendeesModal';
 
-const EMPTY_FORM = { title: '', description: '', date: '', location: '', image_url: '' };
+const EMPTY_FORM = { title: '', description: '', date: '', location: '', image_url: '', capacity: '' };
 
 export default function AdminEvents() {
   const [events, setEvents] = useState([]);
@@ -17,15 +17,24 @@ export default function AdminEvents() {
   const [editingId, setEditingId] = useState(null);
   const [selectedEventForModal, setSelectedEventForModal] = useState(null);
 
+  const [stats, setStats] = useState({ totalEvents: 0, totalRegistrations: 0, upcomingEvents: 0 });
+
   const fetchEvents = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select('*, event_registrations(count)')
       .order('date', { ascending: true });
     
     if (!error && data) {
       setEvents(data);
+      
+      const now = new Date();
+      setStats({
+        totalEvents: data.length,
+        upcomingEvents: data.filter(e => new Date(e.date) >= now).length,
+        totalRegistrations: data.reduce((acc, e) => acc + (e.event_registrations?.[0]?.count || 0), 0)
+      });
     } else if (error) {
       toast.error('Failed to load events: ' + error.message);
     }
@@ -49,7 +58,8 @@ export default function AdminEvents() {
       description: event.description,
       date: new Date(event.date).toISOString().slice(0, 16),
       location: event.location,
-      image_url: event.image_url || ''
+      image_url: event.image_url || '',
+      capacity: event.capacity || ''
     });
     setEditingId(event.id);
     setShowForm(true);
@@ -131,7 +141,7 @@ export default function AdminEvents() {
         <div className="flex gap-3">
           <Link 
             to="/dashboard/admin/scanner"
-            className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-md font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+            className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg"
           >
             <QrCode className="w-4 h-4" /> QR Scanner
           </Link>
@@ -143,12 +153,44 @@ export default function AdminEvents() {
                 setForm(EMPTY_FORM);
               }
             }}
-            className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-md font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+            className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg shadow-blue-500/30"
           >
             {showForm ? <><X className="w-4 h-4" /> Cancel</> : <><Plus className="w-4 h-4" /> Create Event</>}
           </button>
         </div>
       </div>
+
+      {!showForm && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Events</p>
+              <h3 className="text-2xl font-black">{stats.totalEvents}</h3>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Registrations</p>
+              <h3 className="text-2xl font-black">{stats.totalRegistrations}</h3>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center text-green-600 dark:text-green-400">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Upcoming Events</p>
+              <h3 className="text-2xl font-black">{stats.upcomingEvents}</h3>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-6 mb-8 shadow-sm">
@@ -204,6 +246,17 @@ export default function AdminEvents() {
                   type="text" 
                   value={form.location}
                   onChange={(e) => setForm({...form, location: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-gray-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">Maximum Capacity (Leave blank for unlimited)</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  value={form.capacity}
+                  onChange={(e) => setForm({...form, capacity: e.target.value})}
+                  placeholder="e.g. 100"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-gray-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
                 />
               </div>

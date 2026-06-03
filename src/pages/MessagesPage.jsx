@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function MessagesPage() {
   // Use centralized auth — no duplicate getSession needed
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -77,7 +77,13 @@ export default function MessagesPage() {
       if (profilesError) console.error('[Messages] Profile fetch error:', profilesError);
 
       if (profilesData) {
-        const usersWithMsgs = profilesData.map(user => {
+        // Filter out admins if current user is not an admin
+        let filteredProfiles = profilesData;
+        if (session?.user?.user_metadata?.role !== 'admin' && userProfile?.role !== 'admin') {
+          filteredProfiles = profilesData.filter(user => user.role !== 'admin');
+        }
+
+        const usersWithMsgs = filteredProfiles.map(user => {
           const userMsgs = msgs?.filter(m => m.sender_id === user.id || m.receiver_id === user.id) ?? [];
           return {
             ...user,

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Users, GraduationCap, Calendar, Image as ImageIcon, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
+import { Users, GraduationCap, Calendar, Image as ImageIcon, Sparkles, TrendingUp, ShieldCheck, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import QuickActions from '../../components/dashboard/QuickActions';
+import ActivityFeed from '../../components/dashboard/ActivityFeed';
+import { ContentGrid, EmptyStateWidget, SystemStatusWidget } from '../../components/dashboard/DashboardWidgets';
 
 export default function AdminDashboard() {
   const { userProfile } = useAuth();
@@ -68,89 +71,95 @@ export default function AdminDashboard() {
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
-      {/* Welcome Hero */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-8 sm:p-12 shadow-2xl shadow-indigo-900/20 flex flex-col md:flex-row items-center gap-10">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-purple-500 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-20 -mb-10 w-40 h-40 bg-blue-400 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
+      {/* SaaS Compact Header - Platform Control Center */}
+      <div className="bg-theme-card backdrop-blur-2xl border border-theme-border rounded-3xl p-6 sm:p-8 flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between shadow-sm relative overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 dark:bg-indigo-400/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
         
-        <div className="relative z-10 flex-shrink-0">
-          <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-[6px] border-white/20 overflow-hidden shadow-2xl bg-white/5 backdrop-blur-sm relative group">
-            {userProfile?.avatar_url ? (
-              <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/10 to-transparent">
-                <span className="text-4xl font-bold text-white shadow-sm">
-                  {userProfile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
-                </span>
+        {/* Left: User Info & Status */}
+        <div className="flex items-center gap-5 relative z-10">
+          <div className="relative">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-[2px] shadow-md">
+              <div className="w-full h-full bg-theme-card rounded-[14px] overflow-hidden flex items-center justify-center">
+                {userProfile?.avatar_url ? (
+                  <img src={userProfile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                   <span className="text-xl sm:text-2xl font-black text-theme-text">
+                      {userProfile?.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                   </span>
+                )}
               </div>
-            )}
-            <Link to="/dashboard/settings" className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-xs font-bold text-white bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">Edit</span>
-            </Link>
+            </div>
+            {/* Animated Status Indicator */}
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-theme-card rounded-full animate-pulse shadow-sm"></div>
           </div>
-        </div>
-
-        <div className="relative z-10 flex-1 text-center md:text-left">
-          <h1 className="text-4xl sm:text-5xl font-black text-white mb-3 tracking-tight">
-            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {userProfile?.full_name?.split(' ')?.[0] || 'Administrator'} 👋
-          </h1>
-          <p className="text-purple-200 font-semibold text-lg sm:text-xl mb-4 flex items-center justify-center md:justify-start gap-2">
-            <Sparkles className="w-5 h-5 text-amber-300" /> System Command Center
-          </p>
-          <p className="text-blue-50/80 max-w-2xl text-base sm:text-lg leading-relaxed mb-6">
-            Manage users, approve alumni requests, and orchestrate platform content across the university network.
-          </p>
           
-          <div className="inline-flex items-center gap-3 bg-white/10 border border-white/20 px-4 py-2 rounded-2xl backdrop-blur-md w-fit mx-auto md:mx-0">
-            <div className="p-1.5 bg-white/20 rounded-lg">
-              <TrendingUp className="w-4 h-4 text-white" />
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <h1 className="text-xl sm:text-2xl font-black text-theme-text tracking-tight">
+                {new Date().getHours() < 12 ? 'Good Morning' : new Date().getHours() < 18 ? 'Good Afternoon' : 'Good Evening'}, {userProfile?.full_name?.split(' ')?.[0] || 'Admin'}
+              </h1>
+              <span className="bg-indigo-500/10 text-theme-primary border border-theme-primary/20 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest">
+                Platform Control Center
+              </span>
             </div>
-            <p className="text-sm font-bold text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> All Systems Operational
-            </p>
+            
+            <div className="mt-2 inline-flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-1 rounded-full">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">All Systems Operational</span>
+            </div>
           </div>
         </div>
-      </div>
-      
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, idx) => (
-          <div key={stat.name} className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-gray-200/50 dark:border-white/10 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1 transition-all duration-300 overflow-hidden relative group">
-            <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${stat.color}`}></div>
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-3 rounded-2xl bg-gradient-to-br ${stat.color} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-              <Link to={stat.to} className="p-2 bg-gray-100 dark:bg-slate-800 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-200 dark:hover:bg-slate-700">
-                <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              </Link>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{stat.name}</p>
-              <p className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">{stat.value}</p>
-            </div>
+
+        {/* Right: Key Platform Metrics */}
+        <div className="flex gap-6 sm:gap-8 lg:border-l lg:border-theme-border lg:pl-8 relative z-10">
+          <div className="flex flex-col">
+            <span className="text-3xl font-black text-theme-text tracking-tighter">{stats.totalUsers}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-theme-text-muted uppercase tracking-wider">Total Users</span>
           </div>
-        ))}
+          <div className="w-px bg-theme-border"></div>
+          <div className="flex flex-col">
+            <span className="text-3xl font-black text-theme-text tracking-tighter">{stats.totalAlumni}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-theme-text-muted uppercase tracking-wider">Verified Alumni</span>
+          </div>
+          <div className="w-px bg-theme-border"></div>
+          <div className="flex flex-col">
+            <span className="text-3xl font-black text-theme-text tracking-tighter">{stats.totalEvents}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-theme-text-muted uppercase tracking-wider">Events Hosted</span>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          Management Hub
-        </h2>
-        <div className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-3xl p-8 shadow-sm">
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-3xl mb-6">
-            Welcome to the centralized dashboard. Use the sidebar to navigate through specific administrative modules. Ensure you review pending alumni requests regularly to maintain network integrity.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <Link to="/admin/alumni-approval" className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium hover:opacity-90 transition-opacity shadow-lg shadow-blue-500/20 flex items-center gap-2">
-              <GraduationCap className="w-5 h-5" /> Review Pending Alumni
-            </Link>
-            <Link to="/admin/people" className="px-6 py-3 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
-              <Users className="w-5 h-5" /> Manage Faculty Leaders
-            </Link>
-          </div>
-        </div>
-      </div>
+      {/* Quick Actions Grid */}
+      <QuickActions 
+        title="Pending Actions & Management Shortcuts" 
+        actions={[
+          { title: 'Review Alumni', desc: 'Approve pending requests', icon: ShieldCheck, to: '/dashboard/admin/alumni-approval', colorClass: 'from-blue-500 to-indigo-600' },
+          { title: 'Manage Faculty', desc: 'Add or update faculty profiles', icon: GraduationCap, to: '/dashboard/admin/faculty', colorClass: 'from-purple-500 to-fuchsia-600' },
+          { title: 'System Users', desc: 'Manage platform access', icon: Users, to: '/dashboard/admin/users', colorClass: 'from-emerald-500 to-teal-600' },
+          { title: 'Platform Gallery', desc: 'Moderate uploaded images', icon: ImageIcon, to: '/dashboard/admin/gallery', colorClass: 'from-orange-500 to-rose-600' }
+        ]} 
+      />
+
+      {/* Main Content Grid */}
+      <ContentGrid>
+        <SystemStatusWidget />
+        
+        <EmptyStateWidget 
+          title="User Growth Statistics"
+          desc="Analytics engine is compiling user engagement and registration trends over time."
+          icon={TrendingUp}
+          colorClass="text-indigo-500 dark:text-indigo-400"
+          bgClass="bg-indigo-100 dark:bg-indigo-900/30"
+        />
+
+        <ActivityFeed 
+          title="Recent Activity Timeline"
+          items={[]}
+          emptyMessage="No recent system alerts or administrative actions to display."
+          emptyIcon={Activity}
+        />
+      </ContentGrid>
     </div>
   );
 }
